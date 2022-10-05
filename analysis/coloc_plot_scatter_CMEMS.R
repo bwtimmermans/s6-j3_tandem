@@ -1,9 +1,9 @@
-# source("/home/ben/research/NOC/projects/s6-j3_tandem/analysis/coloc_plot_scatter.R")
+# source("/home/ben/research/NOC/projects/s6-j3_tandem/analysis/coloc_plot_scatter_CMEMS.R")
    set.seed(23458892)
    require(lmodel2)
    require(viridis)
 
-   flag_multi_scatter <- TRUE
+   flag_multi_scatter <- FALSE
    flag_plot_junk <- FALSE
 
 # Attach J3.
@@ -42,13 +42,12 @@
 # Pacific.
    b_idx_list <- c(1,14,19,20,21)
    b_idx_list <- 20
-   for (b_idx in b_idx_list) {
+   for (buoy_idx in b_idx_list) {
 # Atlantic.
    #b_idx_list <- c(9,10,11,12,13)
    #for (b_idx in b_idx_list) {
    #for (b_idx in 1) {
 
-   buoy_idx <- b_idx
 #=================================================================================================#
 # Load buoy data.
 # Buoy time offset: 946684800
@@ -66,6 +65,21 @@
    vec_buoy_time_num <- as.numeric( vec_buoy_time[date_idx] ) - 946684800
    vec_buoy_hs <- mat_buoy_csv$hs[date_idx]
    vec_buoy_ap <- mat_buoy_csv$ap[date_idx]
+#-------------------------------------------------------------------------------------------------#
+# Find changes in buoy position.
+   vec_buoy_lon <- mat_buoy_csv$longitude[date_idx]
+   vec_buoy_lat <- mat_buoy_csv$latitude[date_idx]
+   vec_breaks_lon <- NULL
+   vec_breaks_lat <- NULL
+   for (i in 2:length(vec_buoy_lon)) {
+      #print(paste(" Difference:",( nc1_time_idx_cell[i] - nc1_time_idx_cell[i-1] )))
+      if ( abs( vec_buoy_lon[i] - vec_buoy_lon[i-1] ) > 0.005 ) {
+         vec_breaks_lon <- c(vec_breaks_lon,i)
+      }
+      if ( abs( vec_buoy_lat[i] - vec_buoy_lat[i-1] ) > 0.005 ) {
+         vec_breaks_lat <- c(vec_breaks_lat,i)
+      }
+   }
 #-------------------------------------------------------------------------------------------------#
 # Sample Hs within ~50 km radius of buoy.
          path_buoy_meta <- paste("/home/ben/research/waves/buoy_data/NDBC_metadata/",buoy_list[buoy_idx],"_meta",sep="")
