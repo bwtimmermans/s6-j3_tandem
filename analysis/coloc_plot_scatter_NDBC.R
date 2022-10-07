@@ -4,6 +4,7 @@
    require(viridis)
 
    flag_multi_scatter <- FALSE
+   flag_coloc <- FALSE
    flag_plot_junk <- FALSE
 
 # Attach J3.
@@ -22,6 +23,15 @@
    mat_list_S6_SAR <- list_buoy_data[[2]]
    detach()
 
+# Attach ERA5.
+# 51001 51004 46246 46059 46001 46002 46005 46006 46082 46083 46084 46085
+# "coordinates"     "latitude"        "longitude"       "time"            "wave_parameters"
+# "swh"     "p140121" "mp2"     "p140123"
+#   ERA5_b_idx <- 7
+   attach("./output/ERA5/buoy_array_2020-2022.Robj")
+   mat_list_ERA5 <- list_buoy_data[[2]]
+   detach()
+
    lab_month <- c("Dec (2020)","Jan (2021)","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
 
 # as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
@@ -37,12 +47,17 @@
 
 # Process sat data.
    vec_Q50_J3_ALL <- vec_Q50_S6_SAR_ALL <- vec_Q50_S6_LRM_ALL1 <- vec_buoy_hs_coloc_ALL <- vec_buoy_ap_coloc_ALL <- NULL
+   vec_ERA5_hs_coloc_ALL <- vec_ERA5_ap_coloc_ALL <- NULL
    Lvec_qual_J3_ALL <- Lvec_qual_S6_SAR_ALL <- Lvec_qual_S6_LRM_ALL <- Lvec_qual_numval_J3_ALL <- NULL
 
 # Pacific.
+   ERA5_idx_list <- c(3,8,6,7,5)
    b_idx_list <- c(1,14,19,20,21)
-   b_idx_list <- 20
-   for (buoy_idx in b_idx_list) {
+
+   for (b_idx in 1:5) {
+
+   buoy_idx <- b_idx_list[b_idx]
+   ERA5_b_idx <- ERA5_idx_list[b_idx]
 # Atlantic.
    #b_idx_list <- c(9,10,11,12,13)
    #for (b_idx in b_idx_list) {
@@ -52,9 +67,8 @@
 # Load buoy data.
 # Buoy time offset: 946684800
 #-------------------------------------------------------------------------------------------------#
-   #buoy_data_file <- list.files(path = "/home/ben/research/waves/buoy_data/NDBC_complete_records/", pattern = paste("^",buoy_list[buoy_idx],sep="") )
+   buoy_data_file <- list.files(path = "/home/ben/research/waves/buoy_data/NDBC_complete_records/", pattern = paste("^",buoy_list[buoy_idx],".*hs.csv",sep="") )
    #buoy_data_file <- "46005_1976-2021_hs.csv"
-   buoy_data_file <- "46005_1976-2022_hs1.csv"
    mat_buoy_csv1 <- read.csv(paste("/home/ben/research/waves/buoy_data/NDBC_complete_records/",buoy_data_file,sep=""))
    mat_buoy_csv <- mat_buoy_csv1[!is.na(mat_buoy_csv1$hs),]
    vec_buoy_time <- strptime(as.character(mat_buoy_csv[,1]),format="%Y-%m-%d %H:%M:%S",tz="GMT")
@@ -90,7 +104,21 @@
          }
 
 #=================================================================================================#
-## Process sat data.
+# Process ERA5 data.
+# Buoy time offset: 946684800
+# as.POSIXct( vec_ERA5_time_num*3600, origin = "1900-01-01",tz='GMT')
+#-------------------------------------------------------------------------------------------------#
+   vec_ERA5_time_num <- vec_ERA5_hs <- vec_ERA5_ap <- NULL
+   for ( i_month in 1:dim(mat_list_ERA5)[1]) {
+      vec_ERA5_time_num <- c(vec_ERA5_time_num,mat_list_ERA5[[i_month,ERA5_b_idx]][[4]])
+      vec_ERA5_hs <- c(vec_ERA5_hs,mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[1]][2,2,])
+      vec_ERA5_ap <- c(vec_ERA5_ap,mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[3]][2,2,])
+   }
+# Adjust time to common scale starting at 2020-12-01 00:00:00.
+   vec_ERA5_time_num <- vec_ERA5_time_num*3600 - 3155673600
+
+#=================================================================================================#
+# Process satellite data.
 #   vec_Q50_J3_ALL <- vec_Q50_S6_SAR_ALL <- vec_Q50_S6_LRM_ALL1 <- vec_buoy_hs_coloc_ALL <- vec_buoy_ap_coloc_ALL <- NULL
 #   Lvec_qual_J3_ALL <- Lvec_qual_S6_SAR_ALL <- Lvec_qual_S6_LRM_ALL <- NULL
 ## Loop over months 2021 (Jan - Dec).
@@ -129,24 +157,47 @@
       for (S_idx in 1:3) {
          list_mean_time[[S_idx]] <- sapply( X=1:length(list_breaks[[S_idx]]), FUN=function(x) { floor( mean( list_buoy_data1[[S_idx]][[4]][ list_Lvec_buoy_samp[[S_idx]] ][ list_breaks[[S_idx]][[x]] ] ) ) } )
       }
-      mat_DF <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - list_mean_time[[2]]) < 40 } )
-      if ( !is.matrix(mat_DF) ) { mat_DF <- t(as.matrix(mat_DF)) }
-      mat_DE <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - list_mean_time[[3]]) < 40 } )
-      if ( !is.matrix(mat_DE) ) { mat_DE <- t(as.matrix(mat_DE)) }
+
+# Find S6LRM time that matches J-3 block mean time.
+# These will be mostly identical but occasionally there is missing data with no match-up.
+      mat_slot_J3S6L <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - list_mean_time[[2]]) < 40 } )
+      if ( !is.matrix(mat_slot_J3S6L) ) { mat_slot_J3S6L <- t(as.matrix(mat_slot_J3S6L)) }
+
+# Find S6SAR time that matches J-3 block mean time.
+      mat_slot_J3S6SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - list_mean_time[[3]]) < 40 } )
+      if ( !is.matrix(mat_slot_J3S6SAR) ) { mat_slot_J3S6SAR <- t(as.matrix(mat_slot_J3S6SAR)) }
+
 # Find time differences (in seconds).
-#      sapply( X=1:length(DD),FUN=function(x) { DD[x] - EE[mat_DE[,x]] } )
-# Find matching buoy time.
-      mat_GG <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - vec_buoy_time_num) < 1800 } )
-#if ( length( which(mat_GG,arr.ind=T)[,1] ) < length(DD) ) {
+#      sapply( X=1:length(DD),FUN=function(x) { DD[x] - EE[mat_slot_J3S6SAR[,x]] } )
+
+# Find buoy time that matches J3 block mean time.
+      mat_slot_J3B <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - vec_buoy_time_num) < 1800 } )
+#if ( length( which(mat_slot_J3B,arr.ind=T)[,1] ) < length(DD) ) {
 #   print(paste(" Fewer buoy colocs, m_idx:",m_idx))
 #}
+
+# Find ERA5 time that matches J3 block mean time.
+      mat_slot_J3ERA <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - vec_ERA5_time_num) < 1800 } )
+
+#-------------------------------------------------------------------------------------------------#
+# Find buoy Hs and ap for all J3-B colocs.
       vec_buoy_hs_coloc <- vec_buoy_ap_coloc <- rep(NA,length(list_mean_time[[1]]))
 
-      vec_buoy_hs_coloc[which(mat_GG,arr.ind=T)[,2]] <- vec_buoy_hs[ which(mat_GG,arr.ind=T)[,1] ]
+      vec_buoy_hs_coloc[which(mat_slot_J3B,arr.ind=T)[,2]] <- vec_buoy_hs[ which(mat_slot_J3B,arr.ind=T)[,1] ]
       vec_buoy_hs_coloc_ALL <- c(vec_buoy_hs_coloc_ALL,vec_buoy_hs_coloc)
 
-      vec_buoy_ap_coloc[which(mat_GG,arr.ind=T)[,2]] <- vec_buoy_ap[ which(mat_GG,arr.ind=T)[,1] ]
+      vec_buoy_ap_coloc[which(mat_slot_J3B,arr.ind=T)[,2]] <- vec_buoy_ap[ which(mat_slot_J3B,arr.ind=T)[,1] ]
       vec_buoy_ap_coloc_ALL <- c(vec_buoy_ap_coloc_ALL,vec_buoy_ap_coloc)
+#-------------------------------------------------------------------------------------------------#
+# Find buoy Hs and ap for all J3-ERA colocs.
+      vec_ERA5_hs_coloc <- vec_ERA5_ap_coloc <- rep(NA,length(list_mean_time[[1]]))
+
+      vec_ERA5_hs_coloc[which(mat_slot_J3ERA,arr.ind=T)[,2]] <- vec_ERA5_hs[ which(mat_slot_J3ERA,arr.ind=T)[,1] ]
+      vec_ERA5_hs_coloc_ALL <- c(vec_ERA5_hs_coloc_ALL,vec_ERA5_hs_coloc)
+
+      vec_ERA5_ap_coloc[which(mat_slot_J3ERA,arr.ind=T)[,2]] <- vec_ERA5_ap[ which(mat_slot_J3ERA,arr.ind=T)[,1] ]
+      vec_ERA5_ap_coloc_ALL <- c(vec_ERA5_ap_coloc_ALL,vec_ERA5_ap_coloc)
+#-------------------------------------------------------------------------------------------------#
 
 # Find swh track medians.
 # J3.
@@ -164,20 +215,20 @@
       Lvec_qual_numval_J3_ALL <- c(Lvec_qual_numval_J3_ALL,Lvec_qual_numval_J3)
 
 # S6 LRM.
-      #vec_Q50_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[2]][[5]][ unlist( list_buoy_data1[[2]][[6]][mat_DF[,x]] ) ], na.rm=T ) } )
-      vec_Q50_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[2]][[5]][ list_Lvec_buoy_samp[[2]] ][ unlist( list_breaks[[2]][mat_DF[,x]] ) ], na.rm=T ) } )
+      #vec_Q50_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[2]][[5]][ unlist( list_buoy_data1[[2]][[6]][mat_slot_J3S6L[,x]] ) ], na.rm=T ) } )
+      vec_Q50_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[2]][[5]][ list_Lvec_buoy_samp[[2]] ][ unlist( list_breaks[[2]][mat_slot_J3S6L[,x]] ) ], na.rm=T ) } )
       vec_Q50_S6_LRM_ALL1 <- c(vec_Q50_S6_LRM_ALL1,vec_Q50_S6_LRM)
 # S6 LRM quality.
-      #Lvec_qual_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[2]][[7]][ unlist( list_buoy_data1[[2]][[6]][mat_DF[,x]] ) ] ) > 0 } )
-      Lvec_qual_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[2]][[7]][ list_Lvec_buoy_samp[[2]] ][ unlist( list_breaks[[2]][mat_DF[,x]] ) ] ) > 0 } )
+      #Lvec_qual_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[2]][[7]][ unlist( list_buoy_data1[[2]][[6]][mat_slot_J3S6L[,x]] ) ] ) > 0 } )
+      Lvec_qual_S6_LRM <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[2]][[7]][ list_Lvec_buoy_samp[[2]] ][ unlist( list_breaks[[2]][mat_slot_J3S6L[,x]] ) ] ) > 0 } )
       Lvec_qual_S6_LRM_ALL <- c(Lvec_qual_S6_LRM_ALL,Lvec_qual_S6_LRM)
 # S6 SAR.
-      #vec_Q50_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[3]][[5]][ unlist( list_buoy_data1[[3]][[6]][mat_DE[,x]] ) ], na.rm=T ) } )
-      vec_Q50_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[3]][[5]][ list_Lvec_buoy_samp[[3]] ][ unlist( list_breaks[[3]][mat_DE[,x]] ) ], na.rm=T ) } )
+      #vec_Q50_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[3]][[5]][ unlist( list_buoy_data1[[3]][[6]][mat_slot_J3S6SAR[,x]] ) ], na.rm=T ) } )
+      vec_Q50_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { median( list_buoy_data1[[3]][[5]][ list_Lvec_buoy_samp[[3]] ][ unlist( list_breaks[[3]][mat_slot_J3S6SAR[,x]] ) ], na.rm=T ) } )
       vec_Q50_S6_SAR_ALL <- c(vec_Q50_S6_SAR_ALL,vec_Q50_S6_SAR)
 # S6 SAR quality.
-      #Lvec_qual_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[3]][[7]][ unlist( list_buoy_data1[[3]][[6]][mat_DE[,x]] ) ] ) > 0 } )
-      Lvec_qual_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[3]][[7]][ list_Lvec_buoy_samp[[3]] ][ unlist( list_breaks[[3]][mat_DE[,x]] ) ] ) > 0 } )
+      #Lvec_qual_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[3]][[7]][ unlist( list_buoy_data1[[3]][[6]][mat_slot_J3S6SAR[,x]] ) ] ) > 0 } )
+      Lvec_qual_S6_SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { sum( list_buoy_data1[[3]][[7]][ list_Lvec_buoy_samp[[3]] ][ unlist( list_breaks[[3]][mat_slot_J3S6SAR[,x]] ) ] ) > 0 } )
       Lvec_qual_S6_SAR_ALL <- c(Lvec_qual_S6_SAR_ALL,Lvec_qual_S6_SAR)
 
 # Plot.
@@ -396,17 +447,55 @@
 
    }
 
-# Triple coloc:
-   Lvec_pair_idx <- sapply( X=1:length(vec_Q50_J3_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_J3_ALL[x],vec_Q50_S6_SAR_ALL[x],vec_buoy_hs_coloc_ALL[x]))) )
-   Lvec_pair_idx <- Lvec_pair_idx & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
-   #Lvec_pair_idx <- Lvec_pair_idx & !Lvec_qual_J3_ALL
+#=================================================================================================#
+# Triple collocation:
+   if ( flag_coloc ) {
+      Lvec_coloc_idx_master <- sapply( X=1:length(vec_Q50_J3_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_J3_ALL[x],vec_Q50_S6_SAR_ALL[x],vec_buoy_hs_coloc_ALL[x],vec_ERA5_hs_coloc_ALL[x]))) )
+      if ( flag_swell ) {
+         Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
+      } else {
+         Lvec_coloc_idx_master <- Lvec_coloc_idx_master & !Lvec_qual_J3_ALL
+      }
+
+# Bootstrap uncertainty.
+# Get the indices of the triplets.
+      vec_coloc_idx <- which(Lvec_coloc_idx_master)
+
+      n_samp <- 10000
+      mat_sqrt <- matrix(NA,ncol=3,nrow=n_samp)
+
+      for (ii in 1:n_samp) {
+         vec_idx <- sample(vec_coloc_idx,replace=TRUE)
+         D1 <- vec_Q50_J3_ALL[vec_idx]
+         #D2 <- vec_Q50_S6_SAR_ALL[vec_idx]
+         #D2 <- vec_Q50_S6_LRM_ALL[Lvec_pair_idx]
+         D2 <- vec_ERA5_hs_coloc_ALL[vec_idx]
+         D3 <- vec_buoy_hs_coloc_ALL[vec_idx]
+
+         V12 <- var(D1-D2,na.rm=T)
+         V31 <- var(D3-D1,na.rm=T)
+         V23 <- var(D2-D3,na.rm=T)
+
+         mat_sqrt[ii,1] <- sqrt( (V12+V31-V23)/2 )
+         mat_sqrt[ii,2] <- sqrt( (V23+V12-V31)/2 )
+         mat_sqrt[ii,3] <- sqrt( (V31+V23-V12)/2 )
+      }
+# Plot histograms.
+      X11()
+      par(mfrow=c(1,3))
+      hist(mat_sqrt[,1])
+      hist(mat_sqrt[,2])
+      hist(mat_sqrt[,3])
+   }
+
 # Set 1 = J3
 # Set 2 = S6 SAR
 # Set 3 = Buoy
-   D1 <- vec_Q50_J3_ALL[Lvec_pair_idx]
-   D2 <- vec_Q50_S6_SAR_ALL[Lvec_pair_idx]
-   #D2 <- vec_Q50_S6_LRM_ALL[Lvec_pair_idx]
-   D3 <- df_plot$buoy_hs[Lvec_pair_idx]
+   D1 <- vec_Q50_J3_ALL[vec_coloc_idx]
+   D2 <- vec_Q50_S6_LRM_ALL[vec_coloc_idx]
+   #D2 <- vec_Q50_S6_SAR_ALL[Lvec_pair_idx]
+   #D3 <- vec_ERA5_hs_coloc_ALL[vec_coloc_idx]
+   D3 <- vec_buoy_hs_coloc_ALL[vec_coloc_idx]
 
    V12 <- var(D1-D2,na.rm=T)
    V31 <- var(D3-D1,na.rm=T)
