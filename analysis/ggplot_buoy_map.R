@@ -9,10 +9,11 @@
 # Load buoys.
    source("/home/ben/research/NOC/projects/s6-j3_tandem/analysis/load_buoy_locs.R")
 
-   dd <- NULL
+   dd_temp <- NULL
    for (b_idx in 1:length(buoy_list)) {
-      eval(parse(text=paste("dd <- rbind(buoy_",rev(buoy_list)[b_idx],",dd)",sep="")))
+      eval(parse(text=paste("dd_temp <- rbind(buoy_",rev(buoy_list)[b_idx],",dd_temp)",sep="")))
    }
+   dd <- dd_temp[-c(7:14,20,22,30,33,35,46,48,51,52),]
 
 # ================================================================= #
 # Edit here
@@ -82,7 +83,8 @@
          #geom_polygon(data = map_data("state"), aes(x = long, y = lat, group = group), color = "#000000", fill = NA, size = 0.15) +
 # Buoy symbols.
          geom_point(aes(x=buoy_lon, y=buoy_lat, fill=situ), size=4, shape=23) +
-         scale_fill_viridis_d() +
+         #scale_fill_viridis_d() +
+         scale_fill_manual(values = c('blue','yellow')) +
          #geom_label(aes(x=buoy_lon, y=buoy_lat, label=name), label.padding = unit(0.30, "lines"), size = 4, nudge_x = x_nudge, nudge_y = y_nudge) +
 ## Area boxes (in blue).
 #         geom_rect(data=df_rect,mapping=aes(xmin=x1,xmax=x2,ymin=y1,ymax=y2), color="blue", alpha=0.0) +
@@ -93,9 +95,9 @@
                axis.text.x = element_text(size = 10),
                axis.text.y = element_text(size = 10) )
  
-   fig_file_name <- paste("./buoys_",str_region,".pdf",sep="")
+   fig_file_name <- paste("./figures/maps/buoys_",str_region,".pdf",sep="")
    mat_lay <- cbind(c(1,1,1),matrix(rep(2,9),ncol=3))
-   pdf(fig_file_name,width = 16, height = 12)
+   pdf(fig_file_name,width = 12, height = 9)
    #grid.arrange(p2,p1,layout_matrix=mat_lay)
    plot(p2)
    dev.off()

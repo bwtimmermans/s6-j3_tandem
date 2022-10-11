@@ -4,22 +4,35 @@
    require(viridis)
 
    flag_multi_scatter <- FALSE
-   flag_coloc <- FALSE
+   flag_coloc <- TRUE
    flag_plot_junk <- FALSE
 
+# ================================================================= #
+# Load buoys.
+   source("/home/ben/research/NOC/projects/s6-j3_tandem/analysis/load_buoy_locs.R")
+# ================================================================= #
+# Edit here
+# ----------------------------------------------------------------- #
+
+# as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
 # Attach J3.
-   attach("./output/buoys_J3/list_buoy_data_swh_ocean.Robj")
+   #attach("./output/buoys_J3/list_buoy_data_swh_ocean.Robj")
    #attach("./output/buoys_J3/list_buoy_data_swh_ocean_mle3.Robj")
+
+   attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_NS.Robj")
+   #attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_OS.Robj")
    mat_list_J3 <- list_buoy_data[[2]]
    detach()
 
 # Attach S6 LRM.
-   attach("./output/buoys_S6/list_buoy_data_LRM.Robj")
+   attach("./output/buoys_S6/list_buoy_data_LRM_swh_ocean_PAC_NS.Robj")
+   #attach("./output/buoys_S6/list_buoy_data_LRM_swh_ocean_PAC_OS.Robj")
    mat_list_S6_LRM <- list_buoy_data[[2]]
    detach()
 
 # Attach S6 SAR.
-   attach("./output/buoys_S6/list_buoy_data_SAR.Robj")
+   attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_NS.Robj")
+   #attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_OS.Robj")
    mat_list_S6_SAR <- list_buoy_data[[2]]
    detach()
 
@@ -28,17 +41,13 @@
 # "coordinates"     "latitude"        "longitude"       "time"            "wave_parameters"
 # "swh"     "p140121" "mp2"     "p140123"
 #   ERA5_b_idx <- 7
-   attach("./output/ERA5/buoy_array_2020-2022.Robj")
+#attach("./output/ERA5/buoy_array_2020-2022.Robj")
+   attach("./output/ERA5/buoy_array_PAC_NS_2020-2022.Robj")
+   #attach("./output/ERA5/buoy_array_PAC_OS_2020-2022.Robj")
    mat_list_ERA5 <- list_buoy_data[[2]]
    detach()
 
    lab_month <- c("Dec (2020)","Jan (2021)","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-
-# as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
-   buoy_list <- c(46246,46085,51004,51001,32012,
-                  44011,44137,44139,41010,41040,
-                  41044,41048,41049,46006,46082,
-                  46083,46084,46059,46002,46005,46001)
 
    buoy_radius <- 150
 
@@ -50,72 +59,77 @@
    vec_ERA5_hs_coloc_ALL <- vec_ERA5_ap_coloc_ALL <- NULL
    Lvec_qual_J3_ALL <- Lvec_qual_S6_SAR_ALL <- Lvec_qual_S6_LRM_ALL <- Lvec_qual_numval_J3_ALL <- NULL
 
-# Pacific.
-   ERA5_idx_list <- c(3,8,6,7,5)
-   b_idx_list <- c(1,14,19,20,21)
+# Some set of buoys (mostly, all of them).
+   b_idx_list <- 1:length(buoy_list)
+# Nearshore (active).
+   b_idx_list <- (1:52)[-c(7:14,20,22,30,33,35,46,48,51,52)]
+# Offshore (active).
+#   b_idx_list <- 1
 
-   for (b_idx in 1:5) {
+   for (b_idx in 1:length(b_idx_list)) {
 
-   buoy_idx <- b_idx_list[b_idx]
-   ERA5_b_idx <- ERA5_idx_list[b_idx]
-# Atlantic.
-   #b_idx_list <- c(9,10,11,12,13)
-   #for (b_idx in b_idx_list) {
-   #for (b_idx in 1) {
+      ERA5_b_idx <- buoy_idx <- b_idx_list[b_idx]
 
 #=================================================================================================#
 # Load buoy data.
 # Buoy time offset: 946684800
 #-------------------------------------------------------------------------------------------------#
-   buoy_data_file <- list.files(path = "/home/ben/research/waves/buoy_data/NDBC_complete_records/", pattern = paste("^",buoy_list[buoy_idx],".*hs.csv",sep="") )
-   #buoy_data_file <- "46005_1976-2021_hs.csv"
-   mat_buoy_csv1 <- read.csv(paste("/home/ben/research/waves/buoy_data/NDBC_complete_records/",buoy_data_file,sep=""))
-   mat_buoy_csv <- mat_buoy_csv1[!is.na(mat_buoy_csv1$hs),]
-   vec_buoy_time <- strptime(as.character(mat_buoy_csv[,1]),format="%Y-%m-%d %H:%M:%S",tz="GMT")
+      buoy_data_file <- list.files(path = "/home/ben/research/waves/buoy_data/NDBC_complete_records/", pattern = paste("^",buoy_list[buoy_idx],".*hs.csv",sep="") )
+      #buoy_data_file <- "46005_1976-2021_hs.csv"
+      mat_buoy_csv1 <- read.csv(paste("/home/ben/research/waves/buoy_data/NDBC_complete_records/",buoy_data_file,sep=""))
+      mat_buoy_csv <- mat_buoy_csv1[!is.na(mat_buoy_csv1$hs),]
+      vec_buoy_time <- strptime(as.character(mat_buoy_csv[,1]),format="%Y-%m-%d %H:%M:%S",tz="GMT")
 # Get indices for 2020/12 - 2021/12
-   date_start_idx <- which( format( as.POSIXct( vec_buoy_time, tz='GMT'), "%Y%m") %in% "202012" )[1]
-   date_idx <- date_start_idx:length(vec_buoy_time)
+      #date_start_idx <- which( format( as.POSIXct( vec_buoy_time, tz='GMT'), "%Y%m") %in% "202012" )[1]
+      date_start_idx <- c( which( format( as.POSIXct( vec_buoy_time, tz='GMT'), "%Y%m") %in% "202012" ), which( format( as.POSIXct( vec_buoy_time, tz='GMT'), "%Y") %in% "2021" ) )[1]
 
-   vec_buoy_time_num <- as.numeric( vec_buoy_time[date_idx] ) - 946684800
-   vec_buoy_hs <- mat_buoy_csv$hs[date_idx]
-   vec_buoy_ap <- mat_buoy_csv$ap[date_idx]
+      print(paste("Buoy ID:",buoy_idx,"[",buoy_list[buoy_idx],"] date_start_idx:",date_start_idx))
+      if ( !is.na(date_start_idx) ) {
+         date_idx <- date_start_idx:length(vec_buoy_time)
+
+         vec_buoy_time_num <- as.numeric( vec_buoy_time[date_idx] ) - 946684800
+         vec_buoy_hs <- mat_buoy_csv$hs[date_idx]
+         vec_buoy_ap <- mat_buoy_csv$ap[date_idx]
+
 #-------------------------------------------------------------------------------------------------#
-# Sample Hs within ~50 km radius of buoy.
-         path_buoy_meta <- paste("/home/ben/research/waves/buoy_data/NDBC_metadata/",buoy_list[buoy_idx],"_meta",sep="")
-         if ( buoy_list[buoy_idx] == 41113 | buoy_list[buoy_idx] == 46246 ) {
-            com_b_lat <- paste("sed -ne '4p' ",path_buoy_meta," | cut -f1 -d' '",sep="")
-            com_b_lon <- paste("sed -ne '4p' ",path_buoy_meta," | cut -f3 -d' '",sep="")
-         } else {
-            com_b_lat <- paste("sed -ne '5p' ",path_buoy_meta," | cut -f1 -d' '",sep="")
-            com_b_lon <- paste("sed -ne '5p' ",path_buoy_meta," | cut -f3 -d' '",sep="")
-         }
-         df_buoy_loc <- data.frame(lat=as.numeric(system(com_b_lat,intern = TRUE)), lon=-as.numeric(system(com_b_lon,intern = TRUE)), name=buoy_list[buoy_idx])
+## OLD CODE
+## Sample Hs within ~50 km radius of buoy.
+#         path_buoy_meta <- paste("/home/ben/research/waves/buoy_data/NDBC_metadata/",buoy_list[buoy_idx],"_meta",sep="")
+#         if ( buoy_list[buoy_idx] == 41113 | buoy_list[buoy_idx] == 46246 ) {
+#            com_b_lat <- paste("sed -ne '4p' ",path_buoy_meta," | cut -f1 -d' '",sep="")
+#            com_b_lon <- paste("sed -ne '4p' ",path_buoy_meta," | cut -f3 -d' '",sep="")
+#         } else {
+#            com_b_lat <- paste("sed -ne '5p' ",path_buoy_meta," | cut -f1 -d' '",sep="")
+#            com_b_lon <- paste("sed -ne '5p' ",path_buoy_meta," | cut -f3 -d' '",sep="")
+#         }
+#         df_buoy_loc <- data.frame(lat=as.numeric(system(com_b_lat,intern = TRUE)), lon=-as.numeric(system(com_b_lon,intern = TRUE)), name=buoy_list[buoy_idx])
+
 # Code to approximately convert degrees to km.
 # Radius of the Earth in km.
-         i_radius = 6371
+      i_radius = 6371
 # Function for radians.
-         func_rads <- function(x) { x * pi / 180 }
+      func_rads <- function(x) { x * pi / 180 }
 # Function for distance.
-         func_buoy_dist <- function(x) {
-            fl_d_lat = func_rads(x[1]) - func_rads(df_buoy_loc$lat)
-            fl_d_lon = func_rads(x[2]) - func_rads(df_buoy_loc$lon)
-            fl_h = sin(fl_d_lat / 2) * sin(fl_d_lat / 2) + cos( func_rads(df_buoy_loc$lat) ) * cos( func_rads(x[1]) ) * sin(fl_d_lon / 2) * sin(fl_d_lon / 2)
-            2 * i_radius * asin(sqrt(fl_h))
-         }
+      func_buoy_dist <- function(x,B_idx) {
+         fl_d_lat = func_rads(x[1]) - func_rads(df_buoy_data$buoy_lat[B_idx])
+         fl_d_lon = func_rads(x[2]) - func_rads(df_buoy_data$buoy_lon[B_idx])
+         fl_h = sin(fl_d_lat / 2) * sin(fl_d_lat / 2) + cos( func_rads(df_buoy_data$buoy_lat[B_idx]) ) * cos( func_rads(x[1]) ) * sin(fl_d_lon / 2) * sin(fl_d_lon / 2)
+         2 * i_radius * asin(sqrt(fl_h))
+      }
 
 #=================================================================================================#
 # Process ERA5 data.
 # Buoy time offset: 946684800
 # as.POSIXct( vec_ERA5_time_num*3600, origin = "1900-01-01",tz='GMT')
 #-------------------------------------------------------------------------------------------------#
-   vec_ERA5_time_num <- vec_ERA5_hs <- vec_ERA5_ap <- NULL
-   for ( i_month in 1:dim(mat_list_ERA5)[1]) {
-      vec_ERA5_time_num <- c(vec_ERA5_time_num,mat_list_ERA5[[i_month,ERA5_b_idx]][[4]])
-      vec_ERA5_hs <- c(vec_ERA5_hs,mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[1]][2,2,])
-      vec_ERA5_ap <- c(vec_ERA5_ap,mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[3]][2,2,])
-   }
+      vec_ERA5_time_num <- vec_ERA5_hs <- vec_ERA5_ap <- NULL
+      for ( i_month in 1:dim(mat_list_ERA5)[1]) {
+         vec_ERA5_time_num <- c(vec_ERA5_time_num,mat_list_ERA5[[i_month,ERA5_b_idx]][[4]])
+         vec_ERA5_hs <- c(vec_ERA5_hs,mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[1]][2,2,])
+         vec_ERA5_ap <- c(vec_ERA5_ap,mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[3]][2,2,])
+      }
 # Adjust time to common scale starting at 2020-12-01 00:00:00.
-   vec_ERA5_time_num <- vec_ERA5_time_num*3600 - 3155673600
+      vec_ERA5_time_num <- vec_ERA5_time_num*3600 - 3155673600
 
 #=================================================================================================#
 # Process satellite data.
@@ -132,7 +146,7 @@
       list_breaks_master <- vector(mode = "list",length = 3)
       list_Lvec_buoy_samp <- vector(mode = "list",length = 3)
       for (S_idx in 1:3) {
-         vec_sat_buoy_dist <- apply(X=cbind(list_buoy_data1[[S_idx]][[2]],list_buoy_data1[[S_idx]][[3]]-360),MAR=1,FUN=func_buoy_dist)
+         vec_sat_buoy_dist <- apply(X=cbind(list_buoy_data1[[S_idx]][[2]],list_buoy_data1[[S_idx]][[3]]-360),MAR=1,FUN=func_buoy_dist,B_idx=buoy_idx)
 
          list_Lvec_buoy_samp[[S_idx]] <- vec_sat_buoy_dist < buoy_radius
          nc1_time_idx_cell <- list_buoy_data1[[S_idx]][[4]][list_Lvec_buoy_samp[[S_idx]]]
@@ -234,6 +248,8 @@
 # Plot.
 #      plot(vec_Q50_J3,vec_Q50_S6_SAR,xlim=c(0,12),ylim=c(0,12),main=paste(lab_month[m_idx]," N=",length(vec_Q50_J3),sep=""))
 #      abline(a=0,b=1)
+   }
+
    }
 
    }
@@ -450,60 +466,138 @@
 #=================================================================================================#
 # Triple collocation:
    if ( flag_coloc ) {
+      require(ggplot2)
+# Labels for the tandem data.
+      vec_data_var <- c("vec_Q50_J3_ALL","vec_Q50_S6_LRM_ALL","vec_Q50_S6_SAR_ALL")
+      vec_data_lab <- c("J-3","S-6_LRM","S-6_SAR")
+
+# Find coloc data by removing all NA colocs.
       Lvec_coloc_idx_master <- sapply( X=1:length(vec_Q50_J3_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_J3_ALL[x],vec_Q50_S6_SAR_ALL[x],vec_buoy_hs_coloc_ALL[x],vec_ERA5_hs_coloc_ALL[x]))) )
       if ( flag_swell ) {
          Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
+         #Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap < period_thresh) & !Lvec_qual_J3_ALL
       } else {
          Lvec_coloc_idx_master <- Lvec_coloc_idx_master & !Lvec_qual_J3_ALL
       }
 
+# Loop over omission of tandem datasets.
+      df_plot_data <- NULL
+      for (i_data in 1:3) {
 # Bootstrap uncertainty.
 # Get the indices of the triplets.
-      vec_coloc_idx <- which(Lvec_coloc_idx_master)
+         vec_coloc_idx <- which(Lvec_coloc_idx_master)
+         mat_D <- matrix(NA,ncol=3,nrow=length(Lvec_coloc_idx_master))
 
-      n_samp <- 10000
-      mat_sqrt <- matrix(NA,ncol=3,nrow=n_samp)
+         n_samp <- 10000
+         mat_sqrt <- matrix(NA,ncol=3,nrow=n_samp)
 
-      for (ii in 1:n_samp) {
-         vec_idx <- sample(vec_coloc_idx,replace=TRUE)
-         D1 <- vec_Q50_J3_ALL[vec_idx]
-         #D2 <- vec_Q50_S6_SAR_ALL[vec_idx]
-         #D2 <- vec_Q50_S6_LRM_ALL[Lvec_pair_idx]
-         D2 <- vec_ERA5_hs_coloc_ALL[vec_idx]
-         D3 <- vec_buoy_hs_coloc_ALL[vec_idx]
+         for (ii in 1:n_samp) {
+            vec_idx <- sample(vec_coloc_idx,replace=TRUE)
+            D1 <- eval(parse(text=paste(vec_data_var[i_data],"[vec_idx]",sep="")))
+            D2 <- vec_ERA5_hs_coloc_ALL[vec_idx]
+            D3 <- vec_buoy_hs_coloc_ALL[vec_idx]
+            #mat_D[,1] <- eval(parse(text=paste(vec_data_lab[i_data],"[vec_idx]",sep="")))
+            #mat_D[,2] <- vec_ERA5_hs_coloc_ALL[vec_idx]
+            #mat_D[,3] <- vec_buoy_hs_coloc_ALL[vec_idx]
 
-         V12 <- var(D1-D2,na.rm=T)
-         V31 <- var(D3-D1,na.rm=T)
-         V23 <- var(D2-D3,na.rm=T)
+            #D1 <- vec_Q50_J3_ALL[vec_idx]
+            ##D2 <- vec_Q50_S6_SAR_ALL[vec_idx]
+            ##D2 <- vec_Q50_S6_LRM_ALL[Lvec_pair_idx]
+            #D2 <- vec_ERA5_hs_coloc_ALL[vec_idx]
+            #D3 <- vec_buoy_hs_coloc_ALL[vec_idx]
 
-         mat_sqrt[ii,1] <- sqrt( (V12+V31-V23)/2 )
-         mat_sqrt[ii,2] <- sqrt( (V23+V12-V31)/2 )
-         mat_sqrt[ii,3] <- sqrt( (V31+V23-V12)/2 )
+            V12 <- var(D1-D2,na.rm=T)
+            V31 <- var(D3-D1,na.rm=T)
+            V23 <- var(D2-D3,na.rm=T)
+
+            mat_sqrt[ii,1] <- sqrt( (V12+V31-V23)/2 )
+            mat_sqrt[ii,2] <- sqrt( (V23+V12-V31)/2 )
+            mat_sqrt[ii,3] <- sqrt( (V31+V23-V12)/2 )
+         }
+         df_plot_data_temp <- rbind(
+			            data.frame(mean_e=mean(mat_sqrt[,1],na.rm=T),sd_e=sqrt(var(mat_sqrt[,1],na.rm=T)),mission=vec_data_lab[i_data],group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)),
+			            data.frame(mean_e=mean(mat_sqrt[,2],na.rm=T),sd_e=sqrt(var(mat_sqrt[,2],na.rm=T)),mission="ERA5",group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)),
+			            data.frame(mean_e=mean(mat_sqrt[,3],na.rm=T),sd_e=sqrt(var(mat_sqrt[,3],na.rm=T)),mission="Buoys",group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)) )
+         df_plot_data <- rbind(df_plot_data,df_plot_data_temp)
       }
-# Plot histograms.
-      X11()
-      par(mfrow=c(1,3))
-      hist(mat_sqrt[,1])
-      hist(mat_sqrt[,2])
-      hist(mat_sqrt[,3])
+# Plot bar charts.
+      if ( flag_swell ) {
+         #fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
+         fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval_SWELL.png",sep="")
+      } else {
+         fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval.png",sep="")
+      }
+# Plotting.
+      p1 <- ggplot(df_plot_data,aes(x = as.factor(group), y = mean_e, fill = as.factor(mission))) + 
+      geom_col(position = "dodge") +
+      geom_errorbar(aes(ymin = mean_e-sd_e, ymax = mean_e+sd_e), width=0.2,
+                    position=position_dodge(0.9)) +
+      ylim(0,0.6) +
+      ggtitle(paste(str_region," ",buoy_radius," km [N_coloc=",df_plot_data$n_coloc[1],"]",sep="")) +
+      labs(y="Mean error (m)",fill='Dataset') +
+      
+      theme(
+	    plot.title = element_text(size = 70,hjust = 0.5),
+	    axis.title.x=element_blank(),
+            axis.title.y=element_text(size = 50),
+            #panel.grid.minor = element_blank(),
+            #panel.grid.major = element_blank(),
+            #panel.background = element_rect(fill = "black"),
+
+            strip.text = element_text(size = 50, margin = margin(25,0,25,0)),
+            strip.background = element_rect(fill = "white"),
+            panel.spacing.x = unit(1, "lines"),
+            panel.spacing.y = unit(2, "lines"),
+            axis.text.y = element_text(size = 50),
+            axis.text.x = element_text(size = 50),
+            axis.ticks.x = element_blank(),
+
+            legend.position = "left",
+            legend.margin = margin(0,75,0,0),
+            legend.key.width = unit(1.5, "inch"),
+            legend.key.height = unit(2, "inch"),
+            legend.title = element_text(size = 50, margin = margin(25,0,0,0)),
+            legend.title.align = 0.5,
+            legend.text = element_text(size = 40, margin = margin(0,0,0,25))
+         )
+
+      png(fig_file_name, width = 2000, height = 2000)
+      plot(p1)
+      dev.off()
+      system(paste("okular",fig_file_name,"&> /dev/null &"))
+
+## Plot histograms.
+#      X11()
+#      par(mfrow=c(1,3))
+#      hist(mat_sqrt[,1])
+#      hist(mat_sqrt[,2])
+#      hist(mat_sqrt[,3])
+# Mean uncertainty.
+      print(paste("MEAN 1:",mean(mat_sqrt[,1],na.rm=T)))
+      print(paste("MEAN 2:",mean(mat_sqrt[,2],na.rm=T)))
+      print(paste("MEAN 3:",mean(mat_sqrt[,3],na.rm=T)))
+# S.D. for variance uncertainty.
+      print(paste("SQRT 1:",sqrt(var(mat_sqrt[,1],na.rm=T))))
+      print(paste("SQRT 2:",sqrt(var(mat_sqrt[,2],na.rm=T))))
+      print(paste("SQRT 3:",sqrt(var(mat_sqrt[,3],na.rm=T))))
    }
 
-# Set 1 = J3
-# Set 2 = S6 SAR
-# Set 3 = Buoy
-   D1 <- vec_Q50_J3_ALL[vec_coloc_idx]
-   D2 <- vec_Q50_S6_LRM_ALL[vec_coloc_idx]
-   #D2 <- vec_Q50_S6_SAR_ALL[Lvec_pair_idx]
-   #D3 <- vec_ERA5_hs_coloc_ALL[vec_coloc_idx]
-   D3 <- vec_buoy_hs_coloc_ALL[vec_coloc_idx]
-
-   V12 <- var(D1-D2,na.rm=T)
-   V31 <- var(D3-D1,na.rm=T)
-   V23 <- var(D2-D3,na.rm=T)
-
-   sqrt( (V12+V31-V23)/2 )
-   sqrt( (V23+V12-V31)/2 )
-   sqrt( (V31+V23-V12)/2 )
+## Set 1 = J3
+## Set 2 = S6 SAR
+## Set 3 = Buoy
+#   D1 <- vec_Q50_J3_ALL[vec_coloc_idx]
+#   #D2 <- vec_Q50_S6_LRM_ALL[vec_coloc_idx]
+#   #D2 <- vec_Q50_S6_SAR_ALL[Lvec_pair_idx]
+#   D2 <- vec_ERA5_hs_coloc_ALL[vec_coloc_idx]
+#   D3 <- vec_buoy_hs_coloc_ALL[vec_coloc_idx]
+#
+#   V12 <- var(D1-D2,na.rm=T)
+#   V31 <- var(D3-D1,na.rm=T)
+#   V23 <- var(D2-D3,na.rm=T)
+#
+#   sqrt( (V12+V31-V23)/2 )
+#   sqrt( (V23+V12-V31)/2 )
+#   sqrt( (V31+V23-V12)/2 )
 
 ##=================================================================================================#
 ## Plot bad data.

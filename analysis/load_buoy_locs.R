@@ -1,4 +1,4 @@
-# source("/noc/mpoc/scratch/benerm/analysis/s6-j3/load_buoy_locs.R")
+# source("/home/ben/research/NOC/projects/s6-j3_tandem/analysis/load_buoy_locs.R")
 
 # Script to load buoy locations.
 # BT 04/2022
@@ -90,7 +90,7 @@
    buoy_46145 <- data.frame(buoy_lat=54.370,buoy_lon=-132.420, name="46145", situ="NS")
    buoy_46183 <- data.frame(buoy_lat=53.620,buoy_lon=-131.100, name="46183", situ="NS")
    buoy_46208 <- data.frame(buoy_lat=52.520,buoy_lon=-132.690, name="46208", situ="NS")
-   buoy_46183 <- data.frame(buoy_lat=52.420,buoy_lon=-129.790, name="46185", situ="NS")
+   buoy_46185 <- data.frame(buoy_lat=52.420,buoy_lon=-129.790, name="46185", situ="NS")
    buoy_46204 <- data.frame(buoy_lat=51.380,buoy_lon=-128.770, name="46204", situ="NS")
    buoy_46147 <- data.frame(buoy_lat=51.830,buoy_lon=-131.220, name="46147", situ="NS")
    buoy_46207 <- data.frame(buoy_lat=50.870,buoy_lon=-129.920, name="46207", situ="NS")
@@ -163,14 +163,34 @@
 
 # List of buoys to use.
    buoy_list <- c(46246,46085,51004,51001,32012,44011,44137,44139,41010,41040,41044,41048,41049,46006,46082,46083,46084,46059,46002,46005,46001)
-# All Pacific Offshore.
-   str_region <- "PAC_offshore"
-   buoy_list <- c(46035,46073,46072,46075,46066,46078,46246,46085,46001,46002,46005,46006,46059,51000,51001,51101,51002,51003,51004,51209,52200,46082,46083,46084)
+# Pacific Offshore.
+   str_region <- "PAC_OS"
+   buoy_list_PAC_OS <- c(46035,46073,46072,46075,46066,46078,46246,46085,46001,46002,46005,46006,46059)
+# Pacific Nearshore.
+   str_region <- "PAC_NS"
+   buoy_list_PAC_NS <- c(46077,46080,46076,46082,46083,46084,46205,46145,46183,46208,46185,46204,46147,46207,46100,46041,46099,46211,46248,46029,46243,46089,46098,46050,46097,46229,46015,46027,46244,46022,46213,46014,46013,46214,46026,46012,46042,46114,46239,46011,46259,46218,46054,46053,46069,46251,46025,46219,46047,46086,46258,46232)
+# Hawaii Offshore.
+   str_region <- "Hawaii_OS"
+   buoy_list_Hawaii_OS <- c(51000,51001,51101,51002,51003,51004)
+# Hawaii Nearshore.
+   str_region <- "Hawaii_NS"
+   buoy_list_Hawaii_NS <- c(51208,51201,51212,51211,51207,51202,51213,51205,51206)
+# West Pacific (General).
+   str_region <- "PAC_west"
+   buoy_list_PAC_west <- c(52200,52202,52211,52201,51209)
+
+   #str_region <- "PAC_ALL"
+   #buoy_list <- c(buoy_list_PAC_NS,buoy_list_PAC_OS)
+   str_region <- "PAC_NS"
+   buoy_list <- c(buoy_list_PAC_NS)
 
 # Identify lat and lon indices surrounding buoy locations (3x3).
    mat_buoy_lim <- matrix(NA,nrow=length(buoy_list),ncol=4)
+   df_buoy_data <- NULL
    colnames(mat_buoy_lim) <- c("lat_low","lat_high","lon_low","lon_high")
    for ( b_idx in 1:length(buoy_list) ) {
+# Data frame of buoy information.
+      df_buoy_data <- eval(parse(text=paste("rbind(df_buoy_data,buoy_",buoy_list[b_idx],")",sep="")))
 # Lat / lon values.
       eval(parse(text=paste("b_lat <- buoy_",buoy_list[b_idx],"$buoy_lat + c(-1.5,1.5)",sep="")))
       eval(parse(text=paste("b_lon <- buoy_",buoy_list[b_idx],"$buoy_lon + c(-1.5,1.5)",sep="")))
