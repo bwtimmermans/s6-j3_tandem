@@ -3,6 +3,10 @@
    require(lmodel2)
    require(viridis)
    require(ggplot2)
+   require(ggmap)
+   #register_google(key = "AIzaSyDuRPzAJCeXSgGDyqFekhTCVcPWyxbEp3w", write = TRUE)
+   #qmap(c(0,0), zoom = 5, maptype = "satellite")
+   #https://journal.r-project.org/archive/2013-1/kahle-wickham.pdf
    require(ggforce)
    require(maps)
    #require(akima)
@@ -80,7 +84,7 @@
 
    lab_month <- c("Dec (2020)","Jan (2021)","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
 
-   buoy_radius <- 50
+   buoy_radius <- 100
 
 # Process sat data.
    vec_Q50_J3_ALL <- vec_Q50_S6_SAR_ALL <- vec_Q50_S6_LRM_ALL1 <- vec_buoy_hs_coloc_ALL <- vec_buoy_ap_coloc_ALL <- NULL
@@ -104,7 +108,7 @@
 
    #for (b_idx in 1:length(b_idx_list)) {
    #for (b_idx in 1:15) {
-   for (b_idx in 5) {
+   for (b_idx in 12) {
 
       ERA5_b_idx <- buoy_idx <- b_idx_list[b_idx]
 
@@ -158,15 +162,21 @@
       }
 
 ## Function for 100 km distance at 5,5 (Lon, Lat).
-#      func_buoy_dist2 <- function(x) {
-#         fl_d_lat = func_rads(x[1]) - func_rads(5.0)
-#         fl_d_lon = func_rads(x[2]) - func_rads(5.0)
-#         fl_h = sin(fl_d_lat / 2) * sin(fl_d_lat / 2) + cos( func_rads(5.0) ) * cos( func_rads(x[1]) ) * sin(fl_d_lon / 2) * sin(fl_d_lon / 2)
+#      func_buoy_dist2 <- function(x,b_loc) {
+#         fl_d_lat = func_rads(x[2]) - func_rads(b_loc[2])
+#         fl_d_lon = func_rads(x[1]) - func_rads(b_loc[1])
+#         fl_h = sin(fl_d_lat / 2) * sin(fl_d_lat / 2) + cos( func_rads(b_loc[2]) ) * cos( func_rads(x[1]) ) * sin(fl_d_lon / 2) * sin(fl_d_lon / 2)
 #         2 * i_radius * asin(sqrt(fl_h))
 #      }
-#      AA <- expand.grid((1:100)/10,(1:100)/10)
-#      BB <- apply(X=AA,MAR=1,FUN=func_buoy_dist2)
-#      X11(); plot(AA); points(AA[CC,],pch=19,col="red")
+#      #AA <- expand.grid((1:100)/10,50+(1:100)/10)
+#      b_loc1 <- c(df_buoy_data$buoy_lat[buoy_idx],df_buoy_data$buoy_lon[buoy_idx])
+#      b_res <- 50
+#      mat_samp_grid <- expand.grid( c( b_loc1[1] + c(-((1.5*b_res):1)/b_res,0,(1:(1.5*b_res))/b_res) ), c( b_loc1[2] + c(-((1.5*b_res):1)/b_res,0,(1:(1.5*b_res))/b_res) ) )
+#      colnames(mat_samp_grid) <- c("lat","lon")
+#      vec_grid_dist <- apply(X=mat_samp_grid,MAR=1,FUN=func_buoy_dist,B_idx=buoy_idx)
+#      CC <- vec_grid_dist < 76 & vec_grid_dist > 74
+#      X11(); plot(mat_samp_grid); points(mat_samp_grid[CC,],pch=19,col="red")
+#      #AA <- expand.grid( c( -119.872-c((150:1)/100), -119.872+c((1:150)/100) ), c( 57.869-c((150:1)/100), 57.869+c((1:150)/100) ) )
 
 #=================================================================================================#
 # Process ERA5 data.
@@ -437,6 +447,7 @@
 # Plot the box.
    df_plot_ERA5_box <- as.data.frame( t(c(vec_X,vec_Y)) )
    colnames(df_plot_ERA5_box) <- c("x1","x2","y1","y2")
+   df_plot_ERA5_box1 <- as.data.frame( cbind( id=1:4, lat_1=as.numeric(df_plot_ERA5_box[c(3,4,3,4)]), lat_2=as.numeric(df_plot_ERA5_box[c(3,3,4,4)]), lon_1=as.numeric(df_plot_ERA5_box[c(1,1,2,2)]), lon_2=as.numeric(df_plot_ERA5_box[c(2,1,2,1)]) ) )
 #-------------------------------------------------------------------------------------------------#
 
 ## ERA5 Hs gradient and scale (lon).
@@ -479,11 +490,32 @@
 #=================================================================================================#
 # ggplot.
 #-------------------------------------------------------------------------------------------------#
+# Sampling radius.
+# https://stackoverflow.com/questions/34183049/plot-circle-with-a-certain-radius-around-point-on-a-map-in-ggplot2
+    func_make_circles <- function(centers, radius, nPoints = 100){
+    # centers: the data frame of centers with ID
+    # radius: radius measured in kilometer
+    #
+    meanLat <- mean(centers$latitude)
+    # length per longitude changes with lattitude, so need correction
+    radiusLon <- radius /111 / cos(meanLat/57.3)
+    radiusLat <- radius / 111
+    circleDF <- data.frame(ID = rep(centers$ID, each = nPoints))
+    angle <- seq(0,2*pi,length.out = nPoints)
+
+    circleDF$lon <- unlist(lapply(centers$longitude, function(x) x + radiusLon * cos(angle)))
+    circleDF$lat <- unlist(lapply(centers$latitude, function(x) x + radiusLat * sin(angle)))
+    return(circleDF)
+}
+   df_buoy_test <- data.frame(ID=1,df_buoy_data[buoy_idx,c(1,2)])
+   colnames(df_buoy_test) <- c("ID","latitude","longitude")
+   myCircles <- func_make_circles(df_buoy_test, buoy_radius)
+#-------------------------------------------------------------------------------------------------#
    lon_sat_samp <- rep(NA,length(vec_lon))
    #lon_sat_samp[unlist(mat_list_Lvec_buoy_samp[,1])] <- vec_lon[unlist(mat_list_Lvec_buoy_samp[,1])]
    lon_sat_samp[ which(unlist(mat_list_Lvec_buoy_samp[,1]))[unlist(mat_list_Lvec_QC[,1])] ] <- vec_lon[ which(unlist(mat_list_Lvec_buoy_samp[,1]))[unlist(mat_list_Lvec_QC[,1])] ]-360
    lon_sat_samp_min <- rep(NA,length(vec_lon))
-   lon_sat_samp_min[which(unlist(mat_list_Lvec_buoy_samp))[which(unlist(mat_list_Lvec_break_dist_min_idx))]] <- vec_lon[which(unlist(mat_list_Lvec_buoy_samp))[which(unlist(mat_list_Lvec_break_dist_min_idx))]]
+   lon_sat_samp_min[which(unlist(mat_list_Lvec_buoy_samp))[which(unlist(mat_list_Lvec_break_dist_min_idx))]] <- vec_lon[which(unlist(mat_list_Lvec_buoy_samp))[which(unlist(mat_list_Lvec_break_dist_min_idx))]]-360
 
    lat_sat_samp <- rep(NA,length(vec_lat))
    #lat_sat_samp[unlist(mat_list_Lvec_buoy_samp[,1])] <- vec_lat[unlist(mat_list_Lvec_buoy_samp[,1])]
@@ -498,54 +530,71 @@
 #   #worldmap = clipPolys(mapWorld, xlim=c(-179,129),ylim=c(-75,75), keepExtra=TRUE)
 #   #worldmap = clipPolys(mapWorld, xlim=c(-50,200),ylim=c(-75,75), keepExtra=TRUE)
 
-   p2 <- ggplot(data = df_plot) + #scale_x_continuous(limits = c(-100, -50), expand = c(0,0)) + scale_y_continuous(limits = c(10, 50), expand = c(0,0)) +
-         ylab("Latitude\n") + xlab("\nLongitude") +
-         scale_color_manual(values = c('black','red','blue','green','green')) +
-         coord_map(xlim = c(df_buoy_data$buoy_lon[buoy_idx]-2,df_buoy_data$buoy_lon[buoy_idx]+2), ylim = c(df_buoy_data$buoy_lat[buoy_idx]-2,df_buoy_data$buoy_lat[buoy_idx]+2), projection = "lambert", lat0 = df_buoy_data$buoy_lat[buoy_idx]-1, lat1 = df_buoy_data$buoy_lat[buoy_idx]+1) +
-         #coord_map(xlim = c(200,210), ylim = c(50,60), projection = "lambert", lat0 = df_buoy_data$buoy_lat[1]-1, lat1 = df_buoy_data$buoy_lat[1]+1) +
-# Pacific.
-         #coord_map(xlim = c(148,232), ylim = c(-15,58), projection = "bonne", lat0 = 20) +
-# Pacific (East).
-         #coord_map(xlim = c(200,210), ylim = c(50,60), projection = "bonne", lat0 = 55) +
-         geom_polygon(data = map_data("world"), aes(x = long, y = lat, group = group), color = "#000000", fill = NA, linewidth = 0.35) +
-# Satellite tracks.
-         geom_point(aes(x=lon_sat, y=lat_sat, col="1) J-3 1 Hz"), size=1, shape=1) +
-         geom_point(aes(x=lon_sat_samp, y=lat_sat_samp, col="2) Sampled points"), size=2, shape=1) +
-         geom_point(aes(x=lon_sat_samp_min, y=lat_sat_samp_min, col='3) Closest sample'), size=3, shape=1) +
-# Satellite tracks influence.
-#         geom_circle(aes(x0 = x0, y0 = y0, r = rr), data = df_circles) +
-# Buoy symbol(s).
-         geom_point(aes(x=df_buoy_data$buoy_lon[buoy_idx], y=df_buoy_data$buoy_lat[buoy_idx], col="yellow"), colour="black", fill="yellow", size=5, shape=23) +
-         geom_label(aes(x=df_buoy_data$buoy_lon[buoy_idx], y=df_buoy_data$buoy_lat[buoy_idx], label=paste(buoy_list[buoy_idx])), label.padding = unit(0.30, "lines"), size = 4, nudge_x = 1.2, nudge_y = 0.0) +
-# ERA5 grid cells.
-         #geom_point(aes(x=mat_list_ERA5[[1,ERA5_b_idx]][[1]]$buoy_lon_mid[2]-360, y=mat_list_ERA5[[1,ERA5_b_idx]][[1]]$buoy_lat_mid[2]), colour="red", size=4, shape=10) +
-         geom_point(data = df_plot_ERA5, aes(x=ERA5_lon, y=ERA5_lat, col="4) ERA5 (0.5 deg)"), size=4, shape=10) +
-         geom_rect(data = df_plot_ERA5_box, mapping = aes(xmin=x1,xmax=x2,ymin=y1,ymax=y2,col="5) ERA5 bilinear"), alpha=0.0) +
-##         #scale_fill_viridis_d() +
-##         scale_fill_manual(values = c('blue','yellow')) +
-### Area boxes (in blue).
-##         geom_rect(data=df_rect,mapping=aes(xmin=x1,xmax=x2,ymin=y1,ymax=y2), color="blue", alpha=0.0) +
-##         geom_text(data=df_rect,aes(x=x1+0.9*(x2-x1),y=y1+0.2*(y2-y1),label=r),size=6) +
-# Theme stuff.
-         theme(axis.title.x = element_blank(),
-               axis.title.y = element_blank(),
-               axis.text.x = element_text(size = 10),
-               axis.text.y = element_text(size = 10),
-               legend.text=element_text(size = 14),
-               legend.title = element_blank() ) +
-         guides(color=guide_legend(override.aes=list(shape=c(1,1,1,10,NA),linetype=c(0,0,0,0,1),size=c(5,5,5,5,NA))))
-#         guides(fill=guide_legend(reverse=TRUE)) +
-
-   fig_file_name <- paste("./figures/test_sampling/",buoy_list[buoy_idx],"/map_",buoy_list[buoy_idx],"_",buoy_radius,"km.pdf",sep="")
-   system(paste("if [ ! -d ./figures/test_sampling/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling/",buoy_list[buoy_idx]," &> /dev/null; fi",sep=""))
-   mat_lay <- cbind(c(1,1,1),matrix(rep(2,9),ncol=3))
-   pdf(fig_file_name,width = 8, height = 9)
-   #grid.arrange(p2,p1,layout_matrix=mat_lay)
-   plot(p2)
-   dev.off()
-   system(paste("okular",fig_file_name,"&> /dev/null &"))
-
-
+##-------------------------------------------------------------------------------------------------#
+## Old stuff.
+#   p2 <- ggplot(data = df_plot) + #scale_x_continuous(limits = c(-100, -50), expand = c(0,0)) + scale_y_continuous(limits = c(10, 50), expand = c(0,0)) +
+#         ylab("Latitude\n") + xlab("\nLongitude") +
+#         scale_color_manual(values = c('black','red','blue','green','green')) +
+#         coord_map(xlim = c(df_buoy_data$buoy_lon[buoy_idx]-2,df_buoy_data$buoy_lon[buoy_idx]+2), ylim = c(df_buoy_data$buoy_lat[buoy_idx]-2,df_buoy_data$buoy_lat[buoy_idx]+2), projection = "lambert", lat0 = df_buoy_data$buoy_lat[buoy_idx]-1, lat1 = df_buoy_data$buoy_lat[buoy_idx]+1) +
+#         #coord_map(xlim = c(200,210), ylim = c(50,60), projection = "lambert", lat0 = df_buoy_data$buoy_lat[1]-1, lat1 = df_buoy_data$buoy_lat[1]+1) +
+## Pacific.
+#         #coord_map(xlim = c(148,232), ylim = c(-15,58), projection = "bonne", lat0 = 20) +
+## Pacific (East).
+#         #coord_map(xlim = c(200,210), ylim = c(50,60), projection = "bonne", lat0 = 55) +
+#         geom_polygon(data = map_data("world"), aes(x = long, y = lat, group = group), color = "#000000", fill = NA, linewidth = 0.35) +
+#-------------------------------------------------------------------------------------------------#
+## Using Google Maps.
+#   map1 <- get_map(location = c(lon = df_buoy_data$buoy_lon[buoy_idx],lat = df_buoy_data$buoy_lat[buoy_idx]), zoom = 8, maptype = "satellite")
+## Add transparency.
+## https://stackoverflow.com/questions/38126102/set-opacity-of-background-map-with-ggmap
+#   map1_attributes <- attributes(map1)
+#   map1_transparent <- matrix(adjustcolor(map1,alpha.f = 0.6),nrow = nrow(map1))
+#   attributes(map1_transparent) <- map1_attributes
+## Create plot.
+#   p2 <- ggmap(map1_transparent) + 
+## Colour scale.
+#         scale_color_manual(values = c('white','red','blue','green','green'), name = paste(buoy_radius,"km sampling")) +
+## Sampling radius.
+#         #geom_point(data=mat_samp_grid[CC,], aes(x=lon, y=lat, col="1) J-3 1 Hz"), size=2, shape=19, stroke=1) +
+#         geom_polygon(data = myCircles, aes(lon, lat, group = ID), color = "black", linewidth=3, alpha = 0) +
+## Satellite tracks.
+#         geom_point(data=df_plot, aes(x=lon_sat, y=lat_sat, col="1) J-3 1 Hz"), size=8, shape=1, stroke=2) +
+#         geom_point(data=df_plot, aes(x=lon_sat_samp, y=lat_sat_samp, col="2) Sampled points"), size=8, shape=1) +
+#         geom_point(data=df_plot, aes(x=lon_sat_samp_min, y=lat_sat_samp_min, col="3) Closest sample"), size=5, shape=1) +
+## Buoy symbol(s).
+#         geom_point(aes(x=df_buoy_data$buoy_lon[buoy_idx], y=df_buoy_data$buoy_lat[buoy_idx], col="yellow"), colour="black", fill="yellow", size=20, shape=23, stroke=5) +
+#         geom_label(aes(x=df_buoy_data$buoy_lon[buoy_idx], y=df_buoy_data$buoy_lat[buoy_idx], label=paste(buoy_list[buoy_idx])), label.padding = unit(0.30, "lines"), size = 20, nudge_x = 1.2, nudge_y = 0.0) +
+## ERA5 grid cells.
+#         geom_point(data = df_plot_ERA5, aes(x=ERA5_lon, y=ERA5_lat, col="4) ERA5 (0.5 deg)"), size=18, shape=10, stroke=3) +
+#         geom_segment(data = df_plot_ERA5_box1, aes(x=lon_1, y=lat_1, xend=lon_2, yend=lat_2, col="5) ERA5 bilinear"), linewidth=2) +
+##         geom_rect(data = df_plot_ERA5_box, mapping = aes(xmin=x1,xmax=x2,ymin=y1,ymax=y2,col="5) ERA5 bilinear"), alpha=0.0) +
+#### Area boxes (in blue).
+###         geom_rect(data=df_rect,mapping=aes(xmin=x1,xmax=x2,ymin=y1,ymax=y2), color="blue", alpha=0.0) +
+###         geom_text(data=df_rect,aes(x=x1+0.9*(x2-x1),y=y1+0.2*(y2-y1),label=r),size=6) +
+## Theme stuff.
+#         theme(panel.background = element_rect(fill = "gray30"),
+#               panel.grid.major = element_line(linewidth = 2),
+#               axis.title.x = element_blank(),
+#               axis.title.y = element_blank(),
+#               axis.text.x = element_text(size = 40),
+#               axis.text.y = element_text(size = 40),
+#               legend.text = element_text(size = 40,margin = margin(b = 10, t = 10, unit = "pt")),
+#               #legend.title = element_blank() ) + labs(fill = "50km") +
+#               legend.title = element_text(size = 50) ) +
+#         guides(color=guide_legend(override.aes=list(shape=c(1,1,1,10,NA),linetype=c(0,0,0,0,1),size=c(5,5,5,5,NA))))
+##         guides(fill=guide_legend(reverse=TRUE)) +
+#
+#   fig_file_name <- paste("./figures/test_sampling/",buoy_list[buoy_idx],"/map_",buoy_list[buoy_idx],"_",buoy_radius,"km.png",sep="")
+#   system(paste("if [ ! -d ./figures/test_sampling/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling/",buoy_list[buoy_idx]," &> /dev/null; fi",sep=""))
+#   mat_lay <- cbind(c(1,1,1),matrix(rep(2,9),ncol=3))
+#   png(fig_file_name,width=2000,height=1600)
+#   #pdf(fig_file_name,width = 8, height = 9)
+#   #grid.arrange(p2,p1,layout_matrix=mat_lay)
+#   plot(p2)
+#   dev.off()
+#   system(paste("okular",fig_file_name,"&> /dev/null &"))
+#
+#
 #-------------------------------------------------------------------------------------------------#
 # Find the "mean" time stamp for each track segment (J3,S6).
       #list_breaks <- mat_list_breaks_master[,1]

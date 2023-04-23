@@ -3,56 +3,80 @@
    require(lmodel2)
    require(viridis)
 
-   flag_multi_scatter <- FALSE
-   flag_coloc <- TRUE
-   flag_plot_junk <- FALSE
-
 # ================================================================= #
 # Load buoys.
    source("/home/ben/research/NOC/projects/s6-j3_tandem/analysis/load_buoy_locs.R")
 # ================================================================= #
 # Edit here
 # ----------------------------------------------------------------- #
+# Plotting and analysis.
+   flag_multi_scatter <- FALSE
+   flag_coloc <- FALSE
+   flag_plot_junk <- TRUE
 
+# Sea state sampling by period.
+   flag_period_thresh <- FALSE
+   flag_swell_only <- FALSE
+   period_thresh <- 8
+
+# Offshore of neashore.
+   flag_OS <- TRUE
+
+   if ( flag_OS ) {
+#-------------------------------------------------------------------------------------------------#
+# PAC Offshore (active).
+      b_idx_list <- 3:13
+#-------------------------------------------------------------------------------------------------#
 # as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
 # Attach J3.
-   #attach("./output/buoys_J3/list_buoy_data_swh_ocean.Robj")
-   #attach("./output/buoys_J3/list_buoy_data_swh_ocean_mle3.Robj")
-
-   attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_NS.Robj")
-   #attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_OS.Robj")
-   mat_list_J3 <- list_buoy_data[[2]]
-   detach()
+      attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_OS.Robj")
+      mat_list_J3 <- list_buoy_data[[2]]
+      detach()
 
 # Attach S6 LRM.
-   attach("./output/buoys_S6/list_buoy_data_LRM_swh_ocean_PAC_NS.Robj")
-   #attach("./output/buoys_S6/list_buoy_data_LRM_swh_ocean_PAC_OS.Robj")
-   mat_list_S6_LRM <- list_buoy_data[[2]]
-   detach()
+      attach("./output/buoys_S6/list_buoy_data_LRM_swh_ocean_PAC_OS.Robj")
+      mat_list_S6_LRM <- list_buoy_data[[2]]
+      detach()
 
 # Attach S6 SAR.
-   attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_NS.Robj")
-   #attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_OS.Robj")
-   mat_list_S6_SAR <- list_buoy_data[[2]]
-   detach()
+      attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_OS.Robj")
+      mat_list_S6_SAR <- list_buoy_data[[2]]
+      detach()
 
 # Attach ERA5.
-# 51001 51004 46246 46059 46001 46002 46005 46006 46082 46083 46084 46085
+      attach("./output/ERA5/buoy_array_PAC_OS_2020-2022.Robj")
+      mat_list_ERA5 <- list_buoy_data[[2]]
+      detach()
+   } else {
+#-------------------------------------------------------------------------------------------------#
+# PAC Nearshore (active).
+      b_idx_list <- (1:52)[-c(7:14,20,22,30,33,35,46,48,51,52)]
+#-------------------------------------------------------------------------------------------------#
+# Attach J3.
+      attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_NS.Robj")
+      mat_list_J3 <- list_buoy_data[[2]]
+      detach()
+
+# Attach S6 LRM.
+      attach("./output/buoys_S6/list_buoy_data_LRM_swh_ocean_PAC_NS.Robj")
+      mat_list_S6_LRM <- list_buoy_data[[2]]
+      detach()
+
+# Attach S6 SAR.
+      attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_NS.Robj")
+      mat_list_S6_SAR <- list_buoy_data[[2]]
+      detach()
+# Attach ERA5.
 # "coordinates"     "latitude"        "longitude"       "time"            "wave_parameters"
 # "swh"     "p140121" "mp2"     "p140123"
-#   ERA5_b_idx <- 7
-#attach("./output/ERA5/buoy_array_2020-2022.Robj")
-   attach("./output/ERA5/buoy_array_PAC_NS_2020-2022.Robj")
-   #attach("./output/ERA5/buoy_array_PAC_OS_2020-2022.Robj")
-   mat_list_ERA5 <- list_buoy_data[[2]]
-   detach()
+      attach("./output/ERA5/buoy_array_PAC_NS_2020-2022.Robj")
+      mat_list_ERA5 <- list_buoy_data[[2]]
+      detach()
+   }
 
    lab_month <- c("Dec (2020)","Jan (2021)","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
 
-   buoy_radius <- 150
-
-   flag_swell <- FALSE
-   period_thresh <- 8
+   buoy_radius <- 100
 
 # Process sat data.
    vec_Q50_J3_ALL <- vec_Q50_S6_SAR_ALL <- vec_Q50_S6_LRM_ALL1 <- vec_buoy_hs_coloc_ALL <- vec_buoy_ap_coloc_ALL <- NULL
@@ -60,13 +84,18 @@
    Lvec_qual_J3_ALL <- Lvec_qual_S6_SAR_ALL <- Lvec_qual_S6_LRM_ALL <- Lvec_qual_numval_J3_ALL <- NULL
 
 # Some set of buoys (mostly, all of them).
-   b_idx_list <- 1:length(buoy_list)
-# Nearshore (active).
-   b_idx_list <- (1:52)[-c(7:14,20,22,30,33,35,46,48,51,52)]
-# Offshore (active).
-#   b_idx_list <- 1
+#   b_idx_list <- 1:length(buoy_list)
+## Offshore (active).
+#   array_mean_e <- array(NA,dim=c(3,3,13))
+#   rownames(array_mean_e) <- c("","ERA5","buoy")
+#   colnames(array_mean_e) <- c("J-3","S-6_LRM","S-6_SAR")
 
-   for (b_idx in 1:length(b_idx_list)) {
+   #JJ <- 1
+   #for ( JJ in 1:13 ) {
+   #b_idx_list <- (1:13)[-JJ]
+
+   #for (b_idx in 1:length(b_idx_list)) {
+   for (b_idx in 1) {
 
       ERA5_b_idx <- buoy_idx <- b_idx_list[b_idx]
 
@@ -269,22 +298,24 @@
 #-------------------------------------------------------------------------------------------------#
    if ( flag_multi_scatter ) {
 # File name.
-   if ( flag_swell ) {
-      fig_file_name <- paste("./figures/swell_test/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
+   if ( flag_period_thresh ) {
+      #fig_file_name <- paste("./figures/swell_test/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
+      fig_file_name <- paste("./figures/multiscatter/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
    } else {
-      fig_file_name <- paste("./figures/swell_test/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval.png",sep="")
-      fig_file_name <- paste("./figures/CMEMS/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval_NDBC.png",sep="")
+      #fig_file_name <- paste("./figures/swell_test/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval.png",sep="")
+      #fig_file_name <- paste("./figures/CMEMS/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval_NDBC.png",sep="")
+      fig_file_name <- paste("./figures/multiscatter/multiscatter_",length(b_idx_list),"_",buoy_list[buoy_idx],"_",buoy_radius,"km_numval_SWELL.png",sep="")
    }
 
-   png(fig_file_name, width = 3400, height = 1200)
-   par(mfrow=c(1,3),oma=c(8,8,12,9),mar=c(12,14,9,9),mgp=c(9,4,0))
+   png(fig_file_name, width = 3400, height = 3400)
+   par(mfrow=c(4,4),oma=c(8,8,12,9),mar=c(12,14,9,9),mgp=c(9,4,0))
 
 #-------------------------------------------------------------------------------------------------#
 # Line 1 (Buoy)
 #-------------------------------------------------------------------------------------------------#
-## Histogram: buoy
-#   hist(vec_buoy_hs_coloc_ALL,breaks=10,
-#        main="Buoy",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
+# Histogram: buoy
+   hist(vec_buoy_hs_coloc_ALL,breaks=10,
+        main="Buoy",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
 #-------------------------------------------------------------------------------------------------#
 # Plot Buoy/J3 ALL.
    vec_J3_cols <- rep("black",length(Lvec_qual_J3_ALL))
@@ -293,7 +324,7 @@
    vec_J3_pch[Lvec_qual_J3_ALL] <- 19
 # Pairs:
    Lvec_pair_idx <- sapply( X=1:length(vec_buoy_hs_coloc_ALL), FUN=function(x) all(!is.na(cbind(vec_buoy_hs_coloc_ALL[x],vec_Q50_J3_ALL[x]))) )
-   if ( flag_swell ) {
+   if ( flag_period_thresh ) {
       Lvec_pair_idx <- Lvec_pair_idx & (df_plot$buoy_ap < period_thresh) & !Lvec_qual_J3_ALL
       #Lvec_pair_idx <- Lvec_pair_idx & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
    } else {
@@ -313,59 +344,59 @@
    mtext(text=paste("RMSE: ",format(mean(sqrt(lm(J3 ~ buoy_hs,data=df_plot[Lvec_pair_idx,])$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
    mtext(text=paste("SI: ",format(mean(sqrt(lm(J3 ~ buoy_hs,data=df_plot[Lvec_pair_idx,])$residuals^2))/mean(df_plot$buoy_hs[Lvec_pair_idx]),digits=3),sep=''), side=3, line=-12, adj=0.03, cex=3, outer=FALSE)
 #
-##-------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------#
 ## Plot Buoy/S6 LRM ALL.
 #   vec_S6_cols <- rep("black",length(Lvec_qual_S6_LRM_ALL))
 #   vec_S6_cols[Lvec_qual_S6_LRM_ALL] <- "red"
 #   vec_S6_pch <- rep(1,length(Lvec_qual_S6_LRM_ALL))
 #   vec_S6_pch[Lvec_qual_S6_LRM_ALL] <- 19
-## Pairs:
-#   Lvec_pair_idx <- sapply( X=1:length(vec_buoy_hs_coloc_ALL), FUN=function(x) all(!is.na(cbind(vec_buoy_hs_coloc_ALL[x],vec_Q50_S6_LRM_ALL[x]))) )
-#   i_N <- sum( Lvec_pair_idx )
-#
-#   plot(vec_buoy_hs_coloc_ALL,vec_Q50_S6_LRM_ALL,xlim=c(0,12),ylim=c(0,12),pch=vec_S6_pch,col=vec_S6_cols,
-#        main=paste("N=",i_N,sep=""),
-#        xlab="Buoy",ylab="S-6 LRM",cex=4,cex.lab=5,cex.axis=5,cex.main=6)
-#   abline(a=0,b=1)
-#
-#   mtext(text=paste("Correlation: ",format(cor(df_plot$buoy,df_plot$S6LRM,use="pairwise.complete.obs"),digits=3),sep=''), side=3, line=-3, adj=0.03, cex=3, outer=FALSE)
-#   mtext(text=paste("Mean bias: ",format(-mean(df_plot$buoy[Lvec_pair_idx],na.rm=T)+mean(df_plot$S6LRM[Lvec_pair_idx],na.rm=T),digits=3),sep=''), side=3, line=-6, adj=0.03, cex=3, outer=FALSE)
-#   mtext(text=paste("RMSE: ",format(mean(sqrt(lm(S6LRM ~ buoy,data=df_plot)$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
-#
-##-------------------------------------------------------------------------------------------------#
+# Pairs:
+   Lvec_pair_idx <- sapply( X=1:length(vec_buoy_hs_coloc_ALL), FUN=function(x) all(!is.na(cbind(vec_buoy_hs_coloc_ALL[x],vec_Q50_S6_LRM_ALL[x]))) )
+   i_N <- sum( Lvec_pair_idx )
+
+   plot(vec_buoy_hs_coloc_ALL,vec_Q50_S6_LRM_ALL,xlim=c(0,12),ylim=c(0,12),pch=vec_S6_pch,col=vec_S6_cols,
+        main=paste("N=",i_N,sep=""),
+        xlab="Buoy",ylab="S-6 LRM",cex=4,cex.lab=5,cex.axis=5,cex.main=6)
+   abline(a=0,b=1)
+
+   mtext(text=paste("Correlation: ",format(cor(df_plot$buoy_hs,df_plot$S6LRM,use="pairwise.complete.obs"),digits=3),sep=''), side=3, line=-3, adj=0.03, cex=3, outer=FALSE)
+   mtext(text=paste("Mean bias: ",format(-mean(df_plot$buoy_hs[Lvec_pair_idx],na.rm=T)+mean(df_plot$S6LRM[Lvec_pair_idx],na.rm=T),digits=3),sep=''), side=3, line=-6, adj=0.03, cex=3, outer=FALSE)
+   mtext(text=paste("RMSE: ",format(mean(sqrt(lm(S6LRM ~ buoy_hs,data=df_plot)$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
+
+#-------------------------------------------------------------------------------------------------#
 ## Plot Buoy/S6 SAR ALL.
 #   vec_S6_cols <- rep("black",length(Lvec_qual_S6_ALL))
 #   vec_S6_cols[Lvec_qual_S6_ALL] <- "red"
 #   vec_S6_pch <- rep(1,length(Lvec_qual_S6_ALL))
 #   vec_S6_pch[Lvec_qual_S6_ALL] <- 19
-## Pairs:
-#   Lvec_pair_idx <- sapply( X=1:length(vec_buoy_hs_coloc_ALL), FUN=function(x) all(!is.na(cbind(vec_buoy_hs_coloc_ALL[x],vec_Q50_S6_SAR_ALL[x]))) )
-#   i_N <- sum( Lvec_pair_idx )
-#
-#   plot(vec_buoy_hs_coloc_ALL,vec_Q50_S6_SAR_ALL,xlim=c(0,12),ylim=c(0,12),pch=vec_S6_pch,col=vec_S6_cols,
-#        main=paste("N=",i_N,sep=""),
-#        xlab="Buoy",ylab="S-6 SAR",cex=4,cex.lab=5,cex.axis=5,cex.main=6)
-#   abline(a=0,b=1)
-#
-#   mtext(text=paste("Correlation: ",format(cor(df_plot$buoy,df_plot$S6SAR,use="pairwise.complete.obs"),digits=3),sep=''), side=3, line=-3, adj=0.03, cex=3, outer=FALSE)
-#   mtext(text=paste("Mean bias: ",format(-mean(df_plot$buoy[Lvec_pair_idx],na.rm=T)+mean(df_plot$S6SAR[Lvec_pair_idx],na.rm=T),digits=3),sep=''), side=3, line=-6, adj=0.03, cex=3, outer=FALSE)
-#   mtext(text=paste("RMSE: ",format(mean(sqrt(lm(S6SAR ~ buoy,data=df_plot)$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
-#
-##-------------------------------------------------------------------------------------------------#
-## Line 2 (J3)
-##-------------------------------------------------------------------------------------------------#
-## Plot blank.
-#   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
-#
-##-------------------------------------------------------------------------------------------------#
-## Histogram: J3
-#   hist(vec_Q50_J3_ALL,breaks=10,
-#        main="J3",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
-##-------------------------------------------------------------------------------------------------#
+# Pairs:
+   Lvec_pair_idx <- sapply( X=1:length(vec_buoy_hs_coloc_ALL), FUN=function(x) all(!is.na(cbind(vec_buoy_hs_coloc_ALL[x],vec_Q50_S6_SAR_ALL[x]))) )
+   i_N <- sum( Lvec_pair_idx )
+
+   plot(vec_buoy_hs_coloc_ALL,vec_Q50_S6_SAR_ALL,xlim=c(0,12),ylim=c(0,12),pch=vec_S6_pch,col=vec_S6_cols,
+        main=paste("N=",i_N,sep=""),
+        xlab="Buoy",ylab="S-6 SAR",cex=4,cex.lab=5,cex.axis=5,cex.main=6)
+   abline(a=0,b=1)
+
+   mtext(text=paste("Correlation: ",format(cor(df_plot$buoy_hs,df_plot$S6SAR,use="pairwise.complete.obs"),digits=3),sep=''), side=3, line=-3, adj=0.03, cex=3, outer=FALSE)
+   mtext(text=paste("Mean bias: ",format(-mean(df_plot$buoy_hs[Lvec_pair_idx],na.rm=T)+mean(df_plot$S6SAR[Lvec_pair_idx],na.rm=T),digits=3),sep=''), side=3, line=-6, adj=0.03, cex=3, outer=FALSE)
+   mtext(text=paste("RMSE: ",format(mean(sqrt(lm(S6SAR ~ buoy_hs,data=df_plot)$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
+
+#-------------------------------------------------------------------------------------------------#
+# Line 2 (J3)
+#-------------------------------------------------------------------------------------------------#
+# Plot blank.
+   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
+
+#-------------------------------------------------------------------------------------------------#
+# Histogram: J3
+   hist(vec_Q50_J3_ALL,breaks=10,
+        main="J3",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
+#-------------------------------------------------------------------------------------------------#
 # Plot J3/S6 LRM ALL.
 # Pairs:
    Lvec_pair_idx <- sapply( X=1:length(vec_Q50_J3_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_J3_ALL[x],vec_Q50_S6_LRM_ALL[x]))) )
-   if ( flag_swell ) {
+   if ( flag_period_thresh ) {
       Lvec_pair_idx <- Lvec_pair_idx & (df_plot$buoy_ap < period_thresh) & !Lvec_qual_J3_ALL
       #Lvec_pair_idx <- Lvec_pair_idx & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
    } else {
@@ -388,7 +419,7 @@
 #-------------------------------------------------------------------------------------------------#
 # Plot J3/S6 SAR ALL.
    Lvec_pair_idx <- sapply( X=1:length(vec_Q50_J3_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_J3_ALL[x],vec_Q50_S6_SAR_ALL[x]))) )
-   if ( flag_swell ) {
+   if ( flag_period_thresh ) {
       Lvec_pair_idx <- Lvec_pair_idx & (df_plot$buoy_ap < period_thresh) & !Lvec_qual_J3_ALL
       #Lvec_pair_idx <- Lvec_pair_idx & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
    } else {
@@ -408,55 +439,56 @@
    mtext(text=paste("RMSE: ",format(mean(sqrt(lm(S6SAR ~ J3,data=df_plot[Lvec_pair_idx,])$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
    mtext(text=paste("SI: ",format(mean(sqrt(lm(S6SAR ~ J3,data=df_plot[Lvec_pair_idx,])$residuals^2))/mean(df_plot$J3[Lvec_pair_idx]),digits=3),sep=''), side=3, line=-12, adj=0.03, cex=3, outer=FALSE)
 
-##-------------------------------------------------------------------------------------------------#
-## Line 3 (S6 LRM)
-##-------------------------------------------------------------------------------------------------#
-## Plot blank.
-#   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
-#
-##-------------------------------------------------------------------------------------------------#
-## Plot blank.
-#   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
-#
-##-------------------------------------------------------------------------------------------------#
-## Histogram: S6 LRM
-#   hist(vec_Q50_S6_SAR_ALL,breaks=10,
-#        main="S6 LRM",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
-##-------------------------------------------------------------------------------------------------#
-## Plot S6 LRM/S6 SAR ALL.
-## Pairs:
-#   Lvec_pair_idx <- sapply( X=1:length(vec_Q50_S6_LRM_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_S6_LRM_ALL[x],vec_Q50_S6_SAR_ALL[x]))) )
-#   i_N <- sum( Lvec_pair_idx )
-#
-#   plot(vec_Q50_S6_LRM_ALL,vec_Q50_S6_SAR_ALL,xlim=c(0,12),ylim=c(0,12),pch=vec_J3_pch,col=vec_J3_cols,
-#        main=paste("N=",i_N,sep=""),
-#        xlab="S-6 LRM",ylab="S-6 SAR",cex=4,cex.lab=5,cex.axis=5,cex.main=6)
-#   abline(a=0,b=1)
-#
-#   mtext(text=paste("Correlation: ",format(cor(df_plot$S6LRM,df_plot$S6SAR,use="pairwise.complete.obs"),digits=3),sep=''), side=3, line=-3, adj=0.03, cex=3, outer=FALSE)
-#   mtext(text=paste("Mean bias: ",format(-mean(df_plot$S6LRM[Lvec_pair_idx],na.rm=T)+mean(df_plot$S6SAR[Lvec_pair_idx],na.rm=T),digits=3),sep=''), side=3, line=-6, adj=0.03, cex=3, outer=FALSE)
-#   mtext(text=paste("RMSE: ",format(mean(sqrt(lm(S6SAR ~ S6LRM,data=df_plot)$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
-#
-##-------------------------------------------------------------------------------------------------#
-## Plot blank.
-#   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
-#
-##-------------------------------------------------------------------------------------------------#
-## Plot blank.
-#   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
-#
-##-------------------------------------------------------------------------------------------------#
-## Plot blank.
-#   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
-#
-##-------------------------------------------------------------------------------------------------#
-## Histogram: S6 SAR
-#   hist(vec_Q50_S6_LRM_ALL,breaks=10,
-#        main="S6 SAR",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
-#
+#-------------------------------------------------------------------------------------------------#
+# Line 3 (S6 LRM)
+#-------------------------------------------------------------------------------------------------#
+# Plot blank.
+   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
+
+#-------------------------------------------------------------------------------------------------#
+# Plot blank.
+   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
+
+#-------------------------------------------------------------------------------------------------#
+# Histogram: S6 LRM
+   hist(vec_Q50_S6_SAR_ALL,breaks=10,
+        main="S6 LRM",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
+#-------------------------------------------------------------------------------------------------#
+# Plot S6 LRM/S6 SAR ALL.
+# Pairs:
+   Lvec_pair_idx <- sapply( X=1:length(vec_Q50_S6_LRM_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_S6_LRM_ALL[x],vec_Q50_S6_SAR_ALL[x]))) )
+   i_N <- sum( Lvec_pair_idx )
+
+   plot(vec_Q50_S6_LRM_ALL,vec_Q50_S6_SAR_ALL,xlim=c(0,12),ylim=c(0,12),pch=vec_J3_pch,col=vec_J3_cols,
+        main=paste("N=",i_N,sep=""),
+        xlab="S-6 LRM",ylab="S-6 SAR",cex=4,cex.lab=5,cex.axis=5,cex.main=6)
+   abline(a=0,b=1)
+
+   mtext(text=paste("Correlation: ",format(cor(df_plot$S6LRM,df_plot$S6SAR,use="pairwise.complete.obs"),digits=3),sep=''), side=3, line=-3, adj=0.03, cex=3, outer=FALSE)
+   mtext(text=paste("Mean bias: ",format(-mean(df_plot$S6LRM[Lvec_pair_idx],na.rm=T)+mean(df_plot$S6SAR[Lvec_pair_idx],na.rm=T),digits=3),sep=''), side=3, line=-6, adj=0.03, cex=3, outer=FALSE)
+   mtext(text=paste("RMSE: ",format(mean(sqrt(lm(S6SAR ~ S6LRM,data=df_plot)$residuals^2)),digits=3),sep=''), side=3, line=-9, adj=0.03, cex=3, outer=FALSE)
+
+#-------------------------------------------------------------------------------------------------#
+# Plot blank.
+   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
+
+#-------------------------------------------------------------------------------------------------#
+# Plot blank.
+   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
+
+#-------------------------------------------------------------------------------------------------#
+# Plot blank.
+   plot(NULL,xlim=c(0,1),ylim=c(0,1),axes=F,xlab="",ylab="")
+
+#-------------------------------------------------------------------------------------------------#
+# Histogram: S6 SAR
+   hist(vec_Q50_S6_LRM_ALL,breaks=10,
+        main="S6 SAR",xlab="Hs (m)",cex.lab=5,cex.axis=5,cex.main=6)
+
 #-------------------------------------------------------------------------------------------------#
 # Top title.
-   mtext(text=paste("2020/12 - 2021/12 Buoy: ",paste(buoy_list[b_idx_list],collapse=","),sep=""), side=3, line=3, adj=0.05, cex=5, outer=TRUE)
+   #mtext(text=paste("2020/12 - 2021/12 Buoy: ",paste(buoy_list[b_idx_list],collapse=","),sep=""), side=3, line=3, adj=0.05, cex=5, outer=TRUE)
+   mtext(text=paste("2020/12 - 2021/12",str_region,sep=""), side=3, line=3, adj=0.05, cex=5, outer=TRUE)
 
    dev.off()
    system(paste("okular",fig_file_name,"&> /dev/null &"))
@@ -468,16 +500,59 @@
    if ( flag_coloc ) {
       require(ggplot2)
 # Labels for the tandem data.
-      vec_data_var <- c("vec_Q50_J3_ALL","vec_Q50_S6_LRM_ALL","vec_Q50_S6_SAR_ALL")
+      vec_data_var <- c("vec_Q50_J3_ALL_CAL","vec_Q50_S6_LRM_ALL_CAL","vec_Q50_S6_SAR_ALL_CAL")
       vec_data_lab <- c("J-3","S-6_LRM","S-6_SAR")
+
+# Remove statistical outliers TBD.
+# AA <- df_plot$buoy_hs - df_plot$S6SAR; BB <- 3*sqrt(var(AA,na.rm=T)); which( abs(AA - mean(AA,na.rm=T)) > BB )
 
 # Find coloc data by removing all NA colocs.
       Lvec_coloc_idx_master <- sapply( X=1:length(vec_Q50_J3_ALL), FUN=function(x) all(!is.na(cbind(vec_Q50_J3_ALL[x],vec_Q50_S6_SAR_ALL[x],vec_buoy_hs_coloc_ALL[x],vec_ERA5_hs_coloc_ALL[x]))) )
-      if ( flag_swell ) {
-         Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
-         #Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap < period_thresh) & !Lvec_qual_J3_ALL
+      if ( flag_period_thresh ) {
+         if ( flag_swell_only ) {
+            Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap > period_thresh) & !Lvec_qual_J3_ALL
+         } else {
+            Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap < period_thresh) & !Lvec_qual_J3_ALL
+         }
       } else {
          Lvec_coloc_idx_master <- Lvec_coloc_idx_master & !Lvec_qual_J3_ALL
+      }
+
+## Calibration from Matt's file.
+#    if math.fabs(mdn_x2-mdn_x1)>0.2:
+#        x2=x2-(mdn_x2-mdn_x1)
+#        
+#    if math.fabs(mdn_x3-mdn_x1)>0.2:
+#        x3=x3-(mdn_x3-mdn_x1)
+# Calibration w.r.t buoys.
+      fl_calib_thresh <- 0.2
+# J3.
+      vec_med_diff <- abs( median(vec_Q50_J3_ALL[Lvec_coloc_idx_master],na.rm=T) - median(vec_buoy_hs_coloc_ALL[Lvec_coloc_idx_master],na.rm=T) )
+      if ( abs( vec_med_diff ) > fl_calib_thresh ) {
+         vec_Q50_J3_ALL_CAL <- vec_Q50_J3_ALL - vec_med_diff
+      } else {
+         vec_Q50_J3_ALL_CAL <- vec_Q50_J3_ALL
+      }
+# S6LRM.
+      vec_med_diff <- abs( median(vec_Q50_S6_LRM_ALL[Lvec_coloc_idx_master],na.rm=T) - median(vec_buoy_hs_coloc_ALL[Lvec_coloc_idx_master],na.rm=T) )
+      if ( abs( vec_med_diff ) > fl_calib_thresh ) {
+         vec_Q50_S6_LRM_ALL_CAL <- vec_Q50_S6_LRM_ALL - vec_med_diff
+      } else {
+         vec_Q50_S6_LRM_ALL_CAL <- vec_Q50_S6_LRM_ALL
+      }
+# S6SAR.
+      vec_med_diff <- abs( median(vec_Q50_S6_SAR_ALL[Lvec_coloc_idx_master],na.rm=T) - median(vec_buoy_hs_coloc_ALL[Lvec_coloc_idx_master],na.rm=T) )
+      if ( abs( vec_med_diff ) > fl_calib_thresh ) {
+         vec_Q50_S6_SAR_ALL_CAL <- vec_Q50_S6_SAR_ALL - vec_med_diff
+      } else {
+         vec_Q50_S6_SAR_ALL_CAL <- vec_Q50_S6_SAR_ALL
+      }
+# ERA5.
+      vec_med_diff <- abs( median(vec_ERA5_hs_coloc_ALL[Lvec_coloc_idx_master],na.rm=T) - median(vec_buoy_hs_coloc_ALL[Lvec_coloc_idx_master],na.rm=T) )
+      if ( abs( vec_med_diff ) > fl_calib_thresh ) {
+         vec_ERA5_hs_coloc_ALL_CAL <- vec_ERA5_hs_coloc_ALL - vec_med_diff
+      } else {
+         vec_ERA5_hs_coloc_ALL_CAL <- vec_ERA5_hs_coloc_ALL
       }
 
 # Loop over omission of tandem datasets.
@@ -494,11 +569,9 @@
          for (ii in 1:n_samp) {
             vec_idx <- sample(vec_coloc_idx,replace=TRUE)
             D1 <- eval(parse(text=paste(vec_data_var[i_data],"[vec_idx]",sep="")))
-            D2 <- vec_ERA5_hs_coloc_ALL[vec_idx]
+            #D2 <- vec_Q50_J3_ALL[vec_idx]
+            D2 <- vec_ERA5_hs_coloc_ALL_CAL[vec_idx]
             D3 <- vec_buoy_hs_coloc_ALL[vec_idx]
-            #mat_D[,1] <- eval(parse(text=paste(vec_data_lab[i_data],"[vec_idx]",sep="")))
-            #mat_D[,2] <- vec_ERA5_hs_coloc_ALL[vec_idx]
-            #mat_D[,3] <- vec_buoy_hs_coloc_ALL[vec_idx]
 
             #D1 <- vec_Q50_J3_ALL[vec_idx]
             ##D2 <- vec_Q50_S6_SAR_ALL[vec_idx]
@@ -519,11 +592,15 @@
 			            data.frame(mean_e=mean(mat_sqrt[,2],na.rm=T),sd_e=sqrt(var(mat_sqrt[,2],na.rm=T)),mission="ERA5",group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)),
 			            data.frame(mean_e=mean(mat_sqrt[,3],na.rm=T),sd_e=sqrt(var(mat_sqrt[,3],na.rm=T)),mission="Buoys",group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)) )
          df_plot_data <- rbind(df_plot_data,df_plot_data_temp)
+         #array_mean_e[,i_data,JJ] <- df_plot_data_temp$mean_e
       }
 # Plot bar charts.
-      if ( flag_swell ) {
-         #fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
-         fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval_SWELL.png",sep="")
+      if ( flag_period_thresh ) {
+         if ( flag_swell_only ) {
+            fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval_SWELL.png",sep="")
+         } else {
+            fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
+         }
       } else {
          fig_file_name <- paste("./figures/bar_plots/",str_region,"_",buoy_radius,"km_numval.png",sep="")
       }
@@ -561,7 +638,8 @@
             legend.text = element_text(size = 40, margin = margin(0,0,0,25))
          )
 
-      png(fig_file_name, width = 2000, height = 2000)
+      png(fig_file_name, width = 2200, height = 1800)
+      #grid.arrange(p2,p1,ncol=2)
       plot(p1)
       dev.off()
       system(paste("okular",fig_file_name,"&> /dev/null &"))
@@ -573,13 +651,13 @@
 #      hist(mat_sqrt[,2])
 #      hist(mat_sqrt[,3])
 # Mean uncertainty.
-      print(paste("MEAN 1:",mean(mat_sqrt[,1],na.rm=T)))
-      print(paste("MEAN 2:",mean(mat_sqrt[,2],na.rm=T)))
-      print(paste("MEAN 3:",mean(mat_sqrt[,3],na.rm=T)))
+#      print(paste("MEAN 1:",mean(mat_sqrt[,1],na.rm=T)))
+#      print(paste("MEAN 2:",mean(mat_sqrt[,2],na.rm=T)))
+#      print(paste("MEAN 3:",mean(mat_sqrt[,3],na.rm=T)))
 # S.D. for variance uncertainty.
-      print(paste("SQRT 1:",sqrt(var(mat_sqrt[,1],na.rm=T))))
-      print(paste("SQRT 2:",sqrt(var(mat_sqrt[,2],na.rm=T))))
-      print(paste("SQRT 3:",sqrt(var(mat_sqrt[,3],na.rm=T))))
+#      print(paste("SQRT 1:",sqrt(var(mat_sqrt[,1],na.rm=T))))
+#      print(paste("SQRT 2:",sqrt(var(mat_sqrt[,2],na.rm=T))))
+#      print(paste("SQRT 3:",sqrt(var(mat_sqrt[,3],na.rm=T))))
    }
 
 ## Set 1 = J3
@@ -693,25 +771,33 @@
 
    }
 
-## ggplot
-## Remove outliers (J3mS6SAR and buoy_ap)
-#   require(ggplot2)
-#   X11(); ggplot(df_plot1, aes(buoy_hs, buoy_ap, color = J3mS6SAR)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c()
-#   X11(); ggplot(df_plot1, aes(buoy_hs, J3mS6SAR, color = buoy_ap)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c(option = "plasma",direction=-1)
-#
-#   lm_J3mS6SAR = lm(J3mS6SAR ~ buoy_hs + I(buoy_hs^2) + I(buoy_ap^2), data=df_plot1)
-#   BB <- as.numeric( names( lm_J3mS6SAR$fitted.values ) )
-#   vec_temp <- rep(NA,804)
-#   vec_temp[BB] <- lm_J3mS6SAR$fitted.values
-#
-#   lm_S6SAR = lm(S6SAR ~ I(buoy_hs^2) + buoy_ap + I(buoy_ap^3), data=df_plot1)
-#   BB <- as.numeric( names( lm_S6SAR$fitted.values ) )
-#   vec_temp <- rep(NA,804)
-#   vec_temp[BB] <- lm_S6SAR$fitted.values
-#
-#   df_plot2 <- cbind(df_plot1,multi_reg=vec_temp,S6SAR_C=(df_plot1$S6SAR-vec_temp))
-#   X11(); ggplot(df_plot2, aes(buoy_hs, S6SAR_C, color = buoy_ap)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c(option = "plasma",direction=-1)
-#   X11(); ggplot(df_plot2, aes(buoy_hs, buoy_ap, color = S6SAR_C)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c()
+# ggplot
+# Remove outliers (J3mS6SAR and buoy_ap)
+   require(ggplot2)
+   X11(); ggplot(df_plot1, aes(buoy_hs, buoy_ap, color = J3mS6SAR)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c()
+   X11(); ggplot(df_plot1, aes(buoy_hs, J3mS6SAR, color = buoy_ap)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c(option = "plasma",direction=-1)
 
+# Correction based upon J3.
+   lm_J3mS6SAR = lm(J3mS6SAR ~ buoy_hs + I(buoy_hs^2) + I(buoy_ap^2), data=df_plot1)
+   lm_J3mS6SAR = lm(S6SAR ~ J3 + I(J3^2), data=df_plot1)
+   BB <- as.numeric( names( lm_J3mS6SAR$fitted.values ) )
+   vec_temp <- rep(NA,max(BB))
+   vec_temp[BB] <- lm_J3mS6SAR$fitted.values
+   X11(); plot(df_plot1$J3,df_plot1$S6SAR-(vec_temp-df_plot1$J3)); abline(0,1)
+# Error distribution that is used for TC with corrected S6SAR.
+   X11(); plot(df_plot1$S6SAR,vec_temp); abline(0,1)
+
+# Correction based upon buoy.
+   lm_S6SAR = lm(S6SAR ~ I(buoy_hs^2) + buoy_ap + I(buoy_ap^3), data=df_plot1)
+   lm_S6SAR = lm(S6SAR ~ buoy_hs + I(buoy_hs^5), data=df_plot1)
+   BB <- as.numeric( names( lm_S6SAR$fitted.values ) )
+   vec_temp <- rep(NA,max(BB))
+   vec_temp[BB] <- lm_S6SAR$fitted.values
+   X11(); plot(df_plot1$S6SAR,vec_temp); abline(0,1)
+
+   #df_plot2 <- cbind(df_plot1,multi_reg=vec_temp,S6SAR_C=(df_plot1$S6SAR-vec_temp))
+   #X11(); ggplot(df_plot2, aes(buoy_hs, S6SAR_C, color = buoy_ap)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c(option = "plasma",direction=-1)
+   #X11(); ggplot(df_plot2, aes(buoy_hs, multi_reg, color = buoy_ap)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c(option = "plasma",direction=-1)
+   #X11(); ggplot(df_plot2, aes(buoy_hs, buoy_ap, color = S6SAR_C)) + geom_point(shape = 16, size = 3, show.legend = TRUE) + scale_colour_viridis_c()
 
 
