@@ -23,7 +23,7 @@
 
 # Data and sampling.
    buoy_radius <- 75
-   Sidx <- 3
+   Sidx <- 1
    vec_tandem_labs <- c("J3","S6LRM","S6SAR")
 
    lab_month <- c("Dec (2020)","Jan (2021)","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
@@ -112,12 +112,13 @@
    #for (b_idx in 1:length(b_idx_list)) {
    #for (b_idx in 1:15) {
 # Nearshore.
-# 13 46098
+#  1 46077 (in channel, exclude?)
 #  2 46080
 #  4 46082 (some sheltering ~10% reduction)
 #  5 46083
+# 13 46098
 # Offshore.
-   for (b_idx in 7) {
+   for (b_idx in 1) {
 
       ERA5_b_idx <- buoy_idx <- b_idx_list[b_idx]
 
@@ -335,6 +336,13 @@
          for ( ii in 1:length(vec_Xing_lat1) ) {
             vec_XXing_temp[abs( vec_Xing_temp - vec_Xing_lat1[ii] ) < 0.05] <- paste(mat_list_Xing[[m_idx,S_idx]][abs( vec_Xing_temp - vec_Xing_lat1[ii] ) < 0.05],ii,sep='')
          }
+# Check for spurious NAs and replace with "best match".
+         if ( any(is.na(vec_XXing_temp)) ) {
+            if ( (mat_list_Xing[[m_idx,S_idx]] == "D")[which(is.na(vec_XXing_temp))] ) {
+               vec_XXing_temp[which(is.na(vec_XXing_temp))] <- vec_XXing_temp[which( mat_list_Xing[[m_idx,S_idx]] == "D" )][ !is.na(vec_XXing_temp[which( mat_list_Xing[[m_idx,S_idx]] == "D" )]) ][1]
+            }
+         }
+# Write output.
          mat_list_XXing[[m_idx,S_idx]] <- vec_XXing_temp
       }
 
@@ -431,40 +439,63 @@
 #=================================================================================================#
 # Begin correlation algorithm.
 #=================================================================================================#
+# Function for mode.
+      func_mode <- function(x) {
+         ux <- unique(x)
+         ux[which.max(tabulate(match(x, ux)))]
+      }
+
+# Find indices for track IDs (monthly).
       mat_list_trackID <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+      array_list_trackID <- array(list(),dim=c(13,length(vec_unique_trackID),3))
+      array_scale_m_idx <- array(NA,dim=c(2,length(vec_unique_trackID),3))
+
+      list_mode <- list()
+      list_mode_min <- list()
+      vec_mode <- NA
+      vec_mode_min <- NA
+
+      for (S_idx in Sidx) {
+
       for ( jj in 1:length(vec_unique_trackID) ) {
+         vec_mode_temp <- NULL
+         vec_mode_min_temp <- NULL
+# Loop over months.
          for ( m_idx in 1:13 ) {
-            mat_list_trackID[[m_idx,jj]] <- mat_list_breaks_master[[m_idx,S_idx]][which(mat_list_XXing[[m_idx,S_idx]] == vec_unique_trackID[jj])]
+            array_list_trackID[[m_idx,jj,S_idx]] <- mat_list_trackID[[m_idx,jj]] <- mat_list_breaks_master[[m_idx,S_idx]][which(mat_list_XXing[[m_idx,S_idx]] == vec_unique_trackID[jj])]
+# Find mode of trackID length.
+            vec_mode_temp <- c(vec_mode_temp,sapply(X=mat_list_trackID[[m_idx,jj]],length))
+# Find mode of closest points.
+            vec_mode_min_temp <- c(vec_mode_min_temp,sapply(X=mat_list_Lvec_break_dist_min_idx[[m_idx,S_idx]][mat_list_XXing[[m_idx,S_idx]] == vec_unique_trackID[jj]],which))
          }
+         vec_mode[jj] <- func_mode(unlist(vec_mode_temp))
+         vec_mode_min[jj] <- func_mode(unlist(vec_mode_min_temp))
+# Find the month index and
+         scale_idx <- which(vec_mode_temp == vec_mode[jj])[2]
+         iii <- 1; while( sum( sapply(X=1:iii,FUN=function(x) length( mat_list_trackID[[x,jj]] )) ) < scale_idx ) { iii <- iii + 1 }
+         array_scale_m_idx[,jj,S_idx] <- c(iii,scale_idx - sum( sapply(X=1:iii,FUN=function(x) length( mat_list_trackID[[x,jj]] )) ) + length( mat_list_trackID[[iii,jj]] ))
+      }
+      list_mode[[S_idx]] <- vec_mode
+      list_mode_min[[S_idx]] <- vec_mode_min
       }
 #      #for ( m_idx in 1:13 ) { print(paste("m_idx:",m_idx)); for ( jj in 1:length(vec_unique_trackID) ) { print(paste("jj:",jj)); for ( ii in 1:length(mat_list_trackID[[m_idx,jj]]) ) { print( length( mat_list_trackID[[m_idx,jj]][[ii]] ) ) } } }
 #      #for ( m_idx in 1:13 ) { print(paste("m_idx:",m_idx)); for ( jj in 1 ) { print(paste("jj:",jj)); for ( ii in 1:length(mat_list_trackID[[m_idx,jj]]) ) { print( paste(length( mat_list_trackID[[m_idx,jj]][[ii]] ),mat_list_1Hz_lat[[m_idx,1]][mat_list_trackID[[m_idx,jj]][[ii]][1]] ) ) } } }
-#
-# Correlation calculations.
-   func_mode <- function(x) {
-      ux <- unique(x)
-      ux[which.max(tabulate(match(x, ux)))]
-   }
 
-# Find mode of trackID length and closest points.
-   vec_mode <- NA
-   vec_mode_min <- NA
-   for ( jj in 1:length(vec_unique_trackID) ) {
-# Length.
-      vec_mode_temp <- NULL
-      for ( m_idx in 1:13 ) { vec_mode_temp <- c(vec_mode_temp,sapply(X=mat_list_trackID[[m_idx,jj]],length)) }
-      vec_mode[jj] <- func_mode(unlist(vec_mode_temp))
-# Closest point.
-      vec_mode_temp <- NULL
-      for ( m_idx in 1:13 ) { vec_mode_temp <- c(vec_mode_temp,sapply(X=mat_list_Lvec_break_dist_min_idx[[m_idx,S_idx]][mat_list_XXing[[m_idx,S_idx]] == vec_unique_trackID[jj]],which)) }
-      vec_mode_min[jj] <- func_mode(unlist(vec_mode_temp))
-   }
-
+#-------------------------------------------------------------------------------------------------#
 # Find Hs values for each 1 Hz point in each track ID.
    fl_track_tol <- 0.016
+   array_list_trackID_hs <- array(list(),dim=c(13,length(vec_unique_trackID),3))
    mat_list_trackID_hs <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+   mat_list_trackID_hs1 <- matrix(list(),nrow=length(vec_unique_trackID),ncol=3)
    list_lat_test <- list()
+
+   for (S_idx in Sidx) {
+# Assign from array (for convenience).
+   mat_list_trackID <- array_list_trackID[,,S_idx]
+   vec_mode <- list_mode[[S_idx]]
+
    for ( jj in 1:length(vec_unique_trackID) ) {
+   mat_temp1 <- NULL
    vec_lat_test <- NULL
    #print(paste("TrackID:",jj))
       for ( m_idx in 1:13 ) {
@@ -499,21 +530,25 @@
                   print( paste("EXCEED TOLERANCE ** Month: ",m_idx,"; TrackID: ",vec_unique_trackID[jj],"; Mode length: ",vec_mode[jj],"; Actual length: ",length( mat_list_trackID[[m_idx,jj]][[ii]]),"; #: ",ii,sep="") )
                }
             }
-            mat_list_trackID_hs[[m_idx,jj]] <- mat_trackID_hs_temp
+            array_list_trackID_hs[[m_idx,jj,S_idx]] <- mat_list_trackID_hs[[m_idx,jj]] <- mat_trackID_hs_temp
+# Create a list of single array of all Hs trackID data (not monthly).
+            mat_temp1 <- rbind(mat_temp1,mat_trackID_hs_temp)
          } else {
             print( paste("NO TRACKS        ** Month: ",m_idx,"; TrackID: ",vec_unique_trackID[jj],"; Mode length: ",vec_mode[jj],sep="") )
          }
       }
+      mat_list_trackID_hs1[[jj,S_idx]] <- mat_temp1
+   }
    }
 
-# Create a list of single array of all Hs trackID data (not monthly).
-   list_trackID_hs <- list()
-   for ( jj in 1:length(vec_unique_trackID) ) {
-      mat_temp <- NULL
-      for ( m_idx in 1:13 ) { mat_temp <- rbind(mat_temp,mat_list_trackID_hs[[m_idx,jj]]) }
-      #for ( m_idx in 1:4 ) { mat_temp <- rbind(mat_temp,mat_list_trackID_hs[[m_idx,jj]]) }
-      list_trackID_hs[[jj]] <- mat_temp
-   }
+# OLD
+#   list_trackID_hs <- list()
+#   for ( jj in 1:length(vec_unique_trackID) ) {
+#      mat_temp <- NULL
+#      for ( m_idx in 1:13 ) { mat_temp <- rbind(mat_temp,mat_list_trackID_hs[[m_idx,jj]]) }
+#      #for ( m_idx in 1:4 ) { mat_temp <- rbind(mat_temp,mat_list_trackID_hs[[m_idx,jj]]) }
+#      list_trackID_hs[[jj]] <- mat_temp
+#   }
 
 #=================================================================================================#
 # Alogirthm for calculating along track 1 Hz correlations.
@@ -521,6 +556,11 @@
    plot_data <- mat_list_buoy_hs_coloc_AD
    #plot_data <- mat_list_ERA5_hs_coloc_AD
    #plot_data <- mat_list_ERA5_hs_BILIN_coloc_AD
+
+   for (S_idx in Sidx) {
+# Assign from array (for convenience).
+   mat_list_trackID <- array_list_trackID[,,S_idx]
+   list_trackID_hs <- mat_list_trackID_hs1[,S_idx]
 
    list_vec_cor <- list()
    list_vec_cor_95 <- list()
@@ -530,8 +570,11 @@
 # Get track length.
       i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
       list_vec_cor[[jj]] <- rep(NA,i_len_trackID)
-# Find inter-point distance in km (use the first track in m_idx=2).
-      mat_trackID_latlon <- cbind(mat_list_1Hz_lat[[2,S_idx]][mat_list_trackID[[2,jj]][[1]]],mat_list_1Hz_lon[[2,S_idx]][mat_list_trackID[[2,jj]][[1]]])
+# Find inter-point distance in km using an appropriate track (corresponds to vec_mode).
+# array_scale_m_idx contains the required indices.
+      sc_midx <- array_scale_m_idx[1,jj,S_idx]
+      sc_idxB <- array_scale_m_idx[2,jj,S_idx]
+      mat_trackID_latlon <- cbind(mat_list_1Hz_lat[[sc_midx,S_idx]][mat_list_trackID[[sc_midx,jj]][[sc_idxB]]],mat_list_1Hz_lon[[sc_midx,S_idx]][mat_list_trackID[[sc_midx,jj]][[sc_idxB]]])
       colnames(mat_trackID_latlon) <- c("lat","lon")
       vec_trackID_dist <- sapply(X=1:(i_len_trackID-1),FUN=function(x) { func_sat_dist(mat_trackID_latlon[x,],mat_trackID_latlon[x+1,]) })
       list_1Hz_idx_dist[[jj]] <- c( sapply(X=1:(vec_mode_min[jj]-1),FUN=function(x) {-sum(vec_trackID_dist[x:(vec_mode_min[jj]-1)])}),
@@ -543,7 +586,7 @@
             list_vec_cor[[jj]][ii] <- cor(unlist(plot_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs")
          }
       }
-      list_vec_cor_95[[jj]] <- list_vec_cor[[jj]] > 0.95
+      list_vec_cor_95[[jj]] <- list_vec_cor[[jj]] > 0.90
    }
 
 #-------------------------------------------------------------------------------------------------#
@@ -562,7 +605,9 @@
 
       for ( jj in 1:length(vec_unique_trackID) ) {
          i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
-         plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=paste("Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx]),axes=F)
+         title_top <- paste(vec_tandem_labs[S_idx],"Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx])
+         #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=paste("Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx]),axes=F)
+         plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=title_top,axes=F)
          axis(side=2,at=seq(0.5,1.0,0.1),labels=seq(0.5,1.0,0.1))
          axis(side=1,at=1:i_len_trackID,labels=format(list_1Hz_idx_dist[[jj]],digits=2),las=2)
          abline(h=c(0.95,1.0),col="grey")
@@ -584,24 +629,34 @@
       dev.off()
       system(paste("okular",fig_cor_file_name,"&> /dev/null &"))
    }
+   }
 
-## Calculate median values based on "adaptive" sampling.
-#   mat_list_trackID_hs_med <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
-#   mat_list_trackID_hs_med_adapt <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
-#   mat_list_trackID_hs_med_rand <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
-#   mat_list_trackID_hs_min <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
-#   for ( jj in 1:length(vec_unique_trackID) ) {
-#      i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
-#      for ( m_idx in 1:13 ) {
-#         mat_list_trackID_hs_med[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,],na.rm=T) })
-#         mat_list_trackID_hs_med_adapt[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,list_vec_cor_95[[jj]]],na.rm=T) })
-#         mat_list_trackID_hs_med_rand[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,runif(i_len_trackID) > 0.1],na.rm=T) })
-#         mat_list_trackID_hs_min[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { mat_list_trackID_hs[[m_idx,jj]][x,vec_mode_min[[jj]]] })
-#      }
-#   }
-#   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
-#   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
-#
+#=================================================================================================#
+# Triple collocation.
+#=================================================================================================#
+
+
+
+
+# Calculate median values based on "adaptive" sampling.
+   mat_list_trackID_hs_med <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+   mat_list_trackID_hs_med_adapt <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+   mat_list_trackID_hs_med_rand <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+   mat_list_trackID_hs_min <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+   for ( jj in 1:length(vec_unique_trackID) ) {
+      i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
+      for ( m_idx in 1:13 ) {
+         if ( !is.null(mat_list_trackID_hs[[m_idx,jj]]) ) {
+            mat_list_trackID_hs_med[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,],na.rm=T) })
+            mat_list_trackID_hs_med_adapt[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,list_vec_cor_95[[jj]]],na.rm=T) })
+            mat_list_trackID_hs_med_rand[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,runif(i_len_trackID) > 0.1],na.rm=T) })
+            mat_list_trackID_hs_min[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { mat_list_trackID_hs[[m_idx,jj]][x,vec_mode_min[[jj]]] })
+         }
+      }
+   }
+   print(paste(" SQRT ERROR VAR [MED - ADAPT] **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [MED - MIN]   **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+
 #   vec_unique_trackID
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,1])-unlist(mat_list_trackID_hs_med[,1]), na.rm=T ) ) ) )
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,1])-unlist(mat_list_trackID_hs_med_adapt[,1]), na.rm=T ) ) ) )
@@ -609,11 +664,11 @@
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,2])-unlist(mat_list_trackID_hs_med_adapt[,2]), na.rm=T ) ) ) )
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,3])-unlist(mat_list_trackID_hs_med[,3]), na.rm=T ) ) ) )
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,3])-unlist(mat_list_trackID_hs_med_adapt[,3]), na.rm=T ) ) ) )
-#
-#   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
-#   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
-#   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
-#
+
+   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+
 ### Trouble shooting.
 ### E.g. buoy 13, ii <- 8
 ###   X11(); plot(unlist(plot_data[,jj]),list_trackID_hs[[jj]][,ii]); abline(0,1)
