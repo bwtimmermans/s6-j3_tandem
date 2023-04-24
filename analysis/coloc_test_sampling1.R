@@ -17,6 +17,7 @@
    flag_plot_cor <- TRUE
 
 # Sea state sampling by period.
+   flag_coloc
    flag_period_thresh <- FALSE
    flag_swell_only <- FALSE
    period_thresh <- 8
@@ -672,10 +673,6 @@
 #=================================================================================================#
 # Triple collocation.
 #=================================================================================================#
-
-
-
-
 # Calculate median values based on "adaptive" sampling.
    mat_list_trackID_hs_med <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
    mat_list_trackID_hs_med_adapt <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
@@ -692,9 +689,139 @@
          }
       }
    }
-   print(paste(" SQRT ERROR VAR [MED - ADAPT] **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
-   print(paste(" SQRT ERROR VAR [MED - MIN]   **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+#   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
+#   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
+#   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+#=================================================================================================#
+   if ( flag_coloc ) {
+      require(ggplot2)
+# Assign data.
+      df_tc_data <- data.frame(J3_MED=unlist(mat_list_trackID_hs_med),J3_ADAPT=unlist(mat_list_trackID_hs_med_adapt),J3_MIN=unlist(mat_list_trackID_hs_min),buoy_hs=unlist(mat_list_buoy_hs_coloc_AD),ERA5=unlist(mat_list_ERA5_hs_BILIN_coloc_AD))
+      vec_data_lab <- colnames(df_tc_data)
 
+# Find coloc data by removing all NA colocs.
+      Lvec_coloc_idx_master <- sapply( X=1:dim(df_tc_data)[1], FUN=function(x) all(!is.na(df_tc_data[x,])) )
+      if ( flag_period_thresh ) {
+         if ( flag_swell_only ) {
+            Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap > period_thresh)
+         } else {
+            Lvec_coloc_idx_master <- Lvec_coloc_idx_master & (df_plot$buoy_ap < period_thresh)
+         }
+      } else {
+         Lvec_coloc_idx_master <- Lvec_coloc_idx_master
+      }
+
+# Calibration.
+## J3.
+#      vec_med_diff <- abs( median(vec_Q50_J3_ALL[Lvec_coloc_idx_master],na.rm=T) - median(vec_buoy_hs_coloc_ALL[Lvec_coloc_idx_master],na.rm=T) )
+#      if ( abs( vec_med_diff ) > fl_calib_thresh ) {
+#         vec_Q50_J3_ALL_CAL <- vec_Q50_J3_ALL - vec_med_diff
+#      } else {
+#         vec_Q50_J3_ALL_CAL <- vec_Q50_J3_ALL
+#      }
+
+# Loop over omission of tandem datasets.
+      df_plot_data <- NULL
+      for (i_data in 1:3) {
+# Bootstrap the uncertainty over samples of the indices.
+         vec_coloc_idx <- which(Lvec_coloc_idx_master)
+         mat_D <- matrix(NA,ncol=3,nrow=length(Lvec_coloc_idx_master))
+
+         n_samp <- 10000
+         mat_sqrt <- matrix(NA,ncol=3,nrow=n_samp)
+
+         for (ii in 1:n_samp) {
+            vec_idx <- sample(vec_coloc_idx,replace=TRUE)
+            D1 <- eval(parse(text=paste("df_tc_data$",vec_data_lab[i_data],"[vec_idx]",sep="")))
+            #D2 <- vec_Q50_J3_ALL[vec_idx]
+            D2 <- df_tc_data$ERA5[vec_idx]
+            D3 <- df_tc_data$buoy_hs[vec_idx]
+
+            V12 <- var(D1-D2,na.rm=T)
+            V31 <- var(D3-D1,na.rm=T)
+            V23 <- var(D2-D3,na.rm=T)
+
+            mat_sqrt[ii,1] <- sqrt( (V12+V31-V23)/2 )
+            mat_sqrt[ii,2] <- sqrt( (V23+V12-V31)/2 )
+            mat_sqrt[ii,3] <- sqrt( (V31+V23-V12)/2 )
+         }
+         df_plot_data_temp <- rbind(
+                                    data.frame(mean_e=mean(mat_sqrt[,1],na.rm=T),sd_e=sqrt(var(mat_sqrt[,1],na.rm=T)),mission=vec_data_lab[i_data],group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)),
+                                    data.frame(mean_e=mean(mat_sqrt[,2],na.rm=T),sd_e=sqrt(var(mat_sqrt[,2],na.rm=T)),mission="ERA5",group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)),
+                                    data.frame(mean_e=mean(mat_sqrt[,3],na.rm=T),sd_e=sqrt(var(mat_sqrt[,3],na.rm=T)),mission="Buoys",group=i_data,n_coloc=sum(Lvec_coloc_idx_master,na.rm=T)) )
+         df_plot_data <- rbind(df_plot_data,df_plot_data_temp)
+         #array_mean_e[,i_data,JJ] <- df_plot_data_temp$mean_e
+      }
+# Plot bar charts.
+      if ( flag_period_thresh ) {
+         if ( flag_swell_only ) {
+            fig_file_name <- paste("./figures/test_sampling1/bar_plots/",str_region,"_",buoy_radius,"km_numval_SWELL.png",sep="")
+         } else {
+            fig_file_name <- paste("./figures/test_sampling1/bar_plots/",str_region,"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
+         }
+      } else {
+         fig_file_name <- paste("./figures/test_sampling1/bar_plots/",str_region,"_",buoy_radius,"km_numval.png",sep="")
+      }
+# Plotting.
+      p1 <- ggplot(df_plot_data,aes(x = as.factor(group), y = mean_e, fill = as.factor(mission))) + 
+      geom_col(position = "dodge") +
+      geom_errorbar(aes(ymin = mean_e-sd_e, ymax = mean_e+sd_e), width=0.2,
+                    position=position_dodge(0.9)) +
+      ylim(0,0.6) +
+      ggtitle(paste(str_region," ",buoy_radius," km [N_coloc=",df_plot_data$n_coloc[1],"]",sep="")) +
+      labs(y="Mean error (m)",fill='Dataset') +
+      
+      theme(
+            plot.title = element_text(size = 70,hjust = 0.5),
+            axis.title.x=element_blank(),
+            axis.title.y=element_text(size = 50),
+            #panel.grid.minor = element_blank(),
+            #panel.grid.major = element_blank(),
+            #panel.background = element_rect(fill = "black"),
+
+            strip.text = element_text(size = 50, margin = margin(25,0,25,0)),
+            strip.background = element_rect(fill = "white"),
+            panel.spacing.x = unit(1, "lines"),
+            panel.spacing.y = unit(2, "lines"),
+            axis.text.y = element_text(size = 50),
+            axis.text.x = element_text(size = 50),
+            axis.ticks.x = element_blank(),
+
+            legend.position = "left",
+            legend.margin = margin(0,75,0,0),
+            legend.key.width = unit(1.5, "inch"),
+            legend.key.height = unit(2, "inch"),
+            legend.title = element_text(size = 50, margin = margin(25,0,0,0)),
+            legend.title.align = 0.5,
+            legend.text = element_text(size = 40, margin = margin(0,0,0,25))
+         )
+
+      png(fig_file_name, width = 2200, height = 1800)
+      #grid.arrange(p2,p1,ncol=2)
+      plot(p1)
+      dev.off()
+      system(paste("okular",fig_file_name,"&> /dev/null &"))
+
+##=================================================================================================#
+## Calculate median values based on "adaptive" sampling.
+#   mat_list_trackID_hs_med <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+#   mat_list_trackID_hs_med_adapt <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+#   mat_list_trackID_hs_med_rand <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+#   mat_list_trackID_hs_min <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
+#   for ( jj in 1:length(vec_unique_trackID) ) {
+#      i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
+#      for ( m_idx in 1:13 ) {
+#         if ( !is.null(mat_list_trackID_hs[[m_idx,jj]]) ) {
+#            mat_list_trackID_hs_med[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,],na.rm=T) })
+#            mat_list_trackID_hs_med_adapt[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,list_vec_cor_95[[jj]]],na.rm=T) })
+#            mat_list_trackID_hs_med_rand[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,runif(i_len_trackID) > 0.1],na.rm=T) })
+#            mat_list_trackID_hs_min[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { mat_list_trackID_hs[[m_idx,jj]][x,vec_mode_min[[jj]]] })
+#         }
+#      }
+#   }
+#   print(paste(" SQRT ERROR VAR [MED - ADAPT] **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
+#   print(paste(" SQRT ERROR VAR [MED - MIN]   **",sqrt( var( unlist(mat_list_trackID_hs_med)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+#
 #   vec_unique_trackID
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,1])-unlist(mat_list_trackID_hs_med[,1]), na.rm=T ) ) ) )
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,1])-unlist(mat_list_trackID_hs_med_adapt[,1]), na.rm=T ) ) ) )
@@ -702,11 +829,11 @@
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,2])-unlist(mat_list_trackID_hs_med_adapt[,2]), na.rm=T ) ) ) )
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,3])-unlist(mat_list_trackID_hs_med[,3]), na.rm=T ) ) ) )
 #   print(paste(" SQRT ERROR VAR  **",sqrt( var( unlist(plot_data[,3])-unlist(mat_list_trackID_hs_med_adapt[,3]), na.rm=T ) ) ) )
-
-   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
-   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
-   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
-
+#
+#   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
+#   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
+#   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+#
 ### Trouble shooting.
 ### E.g. buoy 13, ii <- 8
 ###   X11(); plot(unlist(plot_data[,jj]),list_trackID_hs[[jj]][,ii]); abline(0,1)
@@ -717,16 +844,3 @@
 ###   mat_list_1Hz_hs[[9,1]][66:70]
 ### Identify quality issues.
 ###   mat_list_1Hz_rms[[9,1]][66:70]
-##
-##
-#### Find S6LRM time that matches J-3 block mean time.
-#### These will be mostly identical but occasionally there is missing data with no match-up.
-###      mat_slot_J3S6L <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - list_mean_time[[2]]) < 40 } )
-###      if ( !is.matrix(mat_slot_J3S6L) ) { mat_slot_J3S6L <- t(as.matrix(mat_slot_J3S6L)) }
-###
-#### Find S6SAR time that matches J-3 block mean time.
-###      mat_slot_J3S6SAR <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - list_mean_time[[3]]) < 40 } )
-###      if ( !is.matrix(mat_slot_J3S6SAR) ) { mat_slot_J3S6SAR <- t(as.matrix(mat_slot_J3S6SAR)) }
-##
-###-------------------------------------------------------------------------------------------------#
-##
