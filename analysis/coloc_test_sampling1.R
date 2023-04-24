@@ -22,7 +22,8 @@
    period_thresh <- 8
 
 # Data and sampling.
-   buoy_radius <- 75
+   buoy_radius <- 100
+   cor_thresh <- 0.92
    Sidx <- 1
    vec_tandem_labs <- c("J3","S6LRM","S6SAR")
 
@@ -112,13 +113,49 @@
    #for (b_idx in 1:length(b_idx_list)) {
    #for (b_idx in 1:15) {
 # Nearshore.
-#  1 46077 (in channel, exclude?)
-#  2 46080
-#  4 46082 (some sheltering ~10% reduction)
-#  5 46083
-# 13 46098
+#  1 46077 (in channel, exclude? Some problems wth S6SAR, probably bad data)
+#  2 46080 (OK, SQRT ERROR VAR [PLOT - MED]   ** 0.261763525781357"; SQRT ERROR VAR [PLOT - ADAPT] ** 0.227810309290934")
+#  3 46076 (" SQRT ERROR VAR [PLOT - MED]   ** 0.37597697122511"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.351993943951201")
+#  4 46082 (" SQRT ERROR VAR [PLOT - MED]   ** 0.301973158200195"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.232068623848342")
+#  5 46083 (" SQRT ERROR VAR [PLOT - MED]   ** 0.301391368812408"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.27109825797336")
+#  6 46084 (Identicle; " SQRT ERROR VAR [PLOT - MED]   ** 0.321912573984294"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.321912573984294")
+#  7 46100 (" SQRT ERROR VAR [PLOT - MED]   ** 0.397596010299418"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.235503941477872")
+#  8 46041 (Identicle-ish; " SQRT ERROR VAR [PLOT - MED]   ** 0.227148202470944"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.223693905210755")
+#  9 46099 (" SQRT ERROR VAR [PLOT - MED]   ** 0.272507839662634";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.265035936562368")
+# 10 46211 BROKEN incorrect number of subscripts (ERROR due to only single track, use larger sampling radius)
+#          125 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.340414704497693";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.309651854789962")
+# 11 46248 BROKEN missing value where TRUE/FALSE needed
+# 12 46243 75 km: NO DATA IN SAMPLING; 100 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.422393474332986";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.365037565522268")
+# 13 46098 (" SQRT ERROR VAR [PLOT - MED]   ** 0.227847928385113";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.223991701969114")
+# 14 46050 (" SQRT ERROR VAR [PLOT - MED]   ** 0.30032744077905"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.278177392113834")
+# 15 46097 (" SQRT ERROR VAR [PLOT - MED]   ** 0.276839634499494"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.259102442329512")
+# 16 46229 (" SQRT ERROR VAR [PLOT - MED]   ** 0.26298045238849";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.25643284499988")
+# 17 46015 BROKEN missing value where TRUE/FALSE needed
+# 18 46027 (" SQRT ERROR VAR [PLOT - MED]   ** 0.402125377648956";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.269062904338796")
+# 19 46244 (" SQRT ERROR VAR [PLOT - MED]   ** 0.310796250381842"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.293057101896118")
+# 20 46213 (" SQRT ERROR VAR [PLOT - MED]   ** 0.321611067745039"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.292033933132178")
+# 21 46014 75 km: NO DATA IN SAMPLING; 100 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.268629429270641"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.248361121807333")
+# 22 46214 BROKEN incorrect number of subscripts
+#           75 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.284517290491437"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.262114164459325")
+#          125 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.651138412269444";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.246346744809346")
+# 23 46012 75 km: NO DATA IN SAMPLING; 100 km NO VIABLE ADAPT DATA
+# 24 46042 75 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.204767805951898"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.228163285496341")
+#         100 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.343983372611237"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.228961188428195")
+# 25 46114 SEASONAL ??? 75 km, 0.92 (" SQRT ERROR VAR [PLOT - MED]   ** 0.243833373359686";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.179912864712029")
+# 26 46239 CHOPPY (" SQRT ERROR VAR [PLOT - MED]   ** 0.235275743916953";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.194710388254242")
+# 27 46011 75 km: NO GOOD DATA IN SAMPLING (SEA STATE GRADIENT)
+# 28 46259 75 km: NO GOOD DATA IN SAMPLING
+# 29 46218 75 km (" SQRT ERROR VAR [PLOT - MED]   ** 0.657480861282529";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.178276987327379")
+# 30 46054 75 km, 0.92 (" SQRT ERROR VAR [PLOT - MED]   ** 0.557787183703984";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.446723610906187")
+# 31 46053 75 km: NO GOOD DATA IN SAMPLING
+# 32 46069 75 km: NO GOOD DATA IN SAMPLING
+#          75 km, 0.92 (" SQRT ERROR VAR [PLOT - MED]   ** 0.288322973038239";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.275976211017579")
+#          90 km, 0.92 (" SQRT ERROR VAR [PLOT - MED]   ** 0.429123970399177"; " SQRT ERROR VAR [PLOT - ADAPT] ** 0.342198885456727")
+# 33 46025 75 km: NO GOOD DATA IN SAMPLING
+# 34 46047 (" SQRT ERROR VAR [PLOT - MED]   ** 0.243679190881128";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.200267042728611")
+# 35 46086 BROKEN missing value where TRUE/FALSE needed
 # Offshore.
-   for (b_idx in 1) {
+   for (b_idx in 32) {
 
       ERA5_b_idx <- buoy_idx <- b_idx_list[b_idx]
 
@@ -491,7 +528,7 @@
 
    for (S_idx in Sidx) {
 # Assign from array (for convenience).
-   mat_list_trackID <- array_list_trackID[,,S_idx]
+   mat_list_trackID <- as.matrix( array_list_trackID[,,S_idx] )
    vec_mode <- list_mode[[S_idx]]
 
    for ( jj in 1:length(vec_unique_trackID) ) {
@@ -559,7 +596,7 @@
 
    for (S_idx in Sidx) {
 # Assign from array (for convenience).
-   mat_list_trackID <- array_list_trackID[,,S_idx]
+   mat_list_trackID <- as.matrix( array_list_trackID[,,S_idx] )
    list_trackID_hs <- mat_list_trackID_hs1[,S_idx]
 
    list_vec_cor <- list()
@@ -586,7 +623,7 @@
             list_vec_cor[[jj]][ii] <- cor(unlist(plot_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs")
          }
       }
-      list_vec_cor_95[[jj]] <- list_vec_cor[[jj]] > 0.90
+      list_vec_cor_95[[jj]] <- list_vec_cor[[jj]] > cor_thresh
    }
 
 #-------------------------------------------------------------------------------------------------#
@@ -605,9 +642,9 @@
 
       for ( jj in 1:length(vec_unique_trackID) ) {
          i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
-         title_top <- paste(vec_tandem_labs[S_idx],"Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx])
+         title_top <- paste(vec_tandem_labs[S_idx]," [",buoy_radius," km] Track ID: ",vec_unique_trackID[[jj]],"\nBuoy: ",buoy_list[buoy_idx],sep="")
          #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=paste("Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx]),axes=F)
-         plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=title_top,axes=F)
+         plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz surface distance (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
          axis(side=2,at=seq(0.5,1.0,0.1),labels=seq(0.5,1.0,0.1))
          axis(side=1,at=1:i_len_trackID,labels=format(list_1Hz_idx_dist[[jj]],digits=2),las=2)
          abline(h=c(0.95,1.0),col="grey")
@@ -617,8 +654,9 @@
          par(new=T)
          plot(1:i_len_trackID,sapply(X=1:i_len_trackID,FUN=function(x) { sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,x] ) ) }),pch=4,ylim=c(0,60),axes=F,xlab="",ylab="")
          axis(side=4,at=seq(0,40,5))
+         mtext("Number of temporal samples", side=4, line=2, cex=0.8)
          if ( jj == 1) {
-            legend(1,20,legend=c("Point closest to buoy","Correlation","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
+            legend(1,15,legend=c("Point closest to buoy","Correlation","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
          }
 # Histogram of collocation time differences.
          if ( jj == 1) {
