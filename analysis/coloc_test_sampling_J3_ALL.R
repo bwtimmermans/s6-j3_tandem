@@ -14,7 +14,7 @@
 # Edit here
 # ----------------------------------------------------------------- #
 # Plotting and analysis.
-   flag_plot_cor <- FALSE
+   flag_plot_cor <- TRUE
 
 # Sea state sampling by period.
    flag_TC <- TRUE
@@ -26,7 +26,7 @@
 
 # Data and sampling.
    buoy_radius <- 75
-   cor_thresh <- 0.95
+   cor_thresh <- 0.92
    Sidx <- 1
    vec_tandem_labs <- c("J3","S6LRM","S6SAR")
 
@@ -42,7 +42,7 @@
 #-------------------------------------------------------------------------------------------------#
 # as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
 # Attach J3.
-      attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_OS.Robj")
+      attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_OS_2017-2022.Robj")
       mat_list_J3 <- list_buoy_data[[2]]
       detach()
 
@@ -57,7 +57,7 @@
       detach()
 
 # Attach ERA5.
-      attach("./output/ERA5/buoy_array_PAC_OS_2020-2022.Robj")
+      attach("./output/ERA5/buoy_array_PAC_OS_2017-2022.Robj")
       mat_list_ERA5 <- list_buoy_data[[2]]
       detach()
    } else {
@@ -160,7 +160,7 @@
 # 34 46047 (" SQRT ERROR VAR [PLOT - MED]   ** 0.243679190881128";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.200267042728611")
 # 35 46086 BROKEN missing value where TRUE/FALSE needed
 # Offshore.
-   for (b_idx in c(2,3)) {
+   for (b_idx in 32) {
 
       ERA5_b_idx <- buoy_idx <- b_idx_list[b_idx]
 
@@ -571,7 +571,11 @@
                } else if ( length( mat_list_trackID[[m_idx,jj]][[ii]] ) == (vec_mode[jj]-1) & abs(mat_list_1Hz_lat[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]][1]] - list_Xing_lat1[[S_idx]][jj]) < fl_track_tol ) {
                   vec_lat_test <- c(vec_lat_test,mat_list_1Hz_lat[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]][1]] - vec_Xing_lat1[jj])
                   mat_trackID_hs_temp[ii,1:length( mat_list_trackID[[m_idx,jj]][[ii]])] <- sapply(X=1:length( mat_list_trackID[[m_idx,jj]][[ii]] ),FUN=function(x) { mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]][x]] })
-
+# Catch-all.
+               } else if ( length( mat_list_trackID[[m_idx,jj]][[ii]] ) == (vec_mode[jj]+1) & abs(mat_list_1Hz_lat[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]][1]] - list_Xing_lat1[[S_idx]][jj]) < 0.024 ) {
+                  mat_trackID_hs_temp[ii,] <- sapply(X=1:(length( mat_list_trackID[[m_idx,jj]][[ii]] )-1),FUN=function(x) { mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]][x]] })
+               } else if ( length( mat_list_trackID[[m_idx,jj]][[ii]] ) == vec_mode[jj] & abs(mat_list_1Hz_lat[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]][1]] - list_Xing_lat1[[S_idx]][jj]) < 0.024 ) {
+                  mat_trackID_hs_temp[ii,] <- sapply(X=1:length( mat_list_trackID[[m_idx,jj]][[ii]] ),FUN=function(x) { mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]][x]] })
                } else {
                   print( paste("EXCEED TOLERANCE ** Month: ",m_idx,"; TrackID: ",vec_unique_trackID[jj],"; Mode length: ",vec_mode[jj],"; Actual length: ",length( mat_list_trackID[[m_idx,jj]][[ii]]),"; #: ",ii,sep="") )
                }
@@ -697,9 +701,9 @@
          }
       }
    }
-#   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
-#   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
-#   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
 #=================================================================================================#
    if ( flag_TC ) {
       require(ggplot2)
@@ -772,7 +776,8 @@
             fig_file_name <- paste("./figures/test_sampling1/bar_plots_J3_2017/",str_region,"_",buoy_radius,"km_numval_NOSWELL.png",sep="")
          }
       } else {
-         fig_file_name <- paste("./figures/test_sampling1/bar_plots_J3_2017/",str_region,"_",vec_data_lab[5],"_",buoy_radius,"km.png",sep="")
+         #fig_file_name <- paste("./figures/test_sampling1/bar_plots_J3_2017/",str_region,"_",vec_data_lab[5],"_",buoy_radius,"km.png",sep="")
+         fig_file_name <- paste("./figures/test_sampling1/bar_plots_J3_2017/",buoy_list[buoy_idx],"_",vec_data_lab[5],"_",buoy_radius,"km.png",sep="")
       }
 # Plotting.
       p1 <- ggplot(df_plot_data,aes(x = as.factor(group), y = mean_e, fill = as.factor(mission))) + 
@@ -780,7 +785,8 @@
       geom_errorbar(aes(ymin = mean_e-sd_e, ymax = mean_e+sd_e), width=0.2,
                     position=position_dodge(0.9)) +
       ylim(0,0.6) +
-      ggtitle(paste(str_region," ",buoy_radius," km [N_coloc=",df_plot_data$n_coloc[1],"]",sep="")) +
+      #ggtitle(paste(str_region," ",buoy_radius," km [N_coloc=",df_plot_data$n_coloc[1],"]",sep="")) +
+      ggtitle(paste(buoy_list[buoy_idx]," ",buoy_radius," km [N_coloc=",df_plot_data$n_coloc[1],"]",sep="")) +
       labs(y="Mean error (m)",fill='Dataset') +
       
       theme(

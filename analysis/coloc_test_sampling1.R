@@ -15,11 +15,10 @@
 # ----------------------------------------------------------------- #
 # Plotting and analysis.
    flag_plot_cor <- TRUE
+   #flag_plot_rmse <- TRUE
+   flag_TC <- FALSE
 
-# Sea state sampling by period.
-   flag_TC <- TRUE
-   flag_ERA5_BILIN <- FALSE
-
+# Sea state sampling by wave period.
    flag_period_thresh <- FALSE
    flag_swell_only <- FALSE
    period_thresh <- 8
@@ -27,13 +26,23 @@
 # Data and sampling.
    buoy_radius <- 75
    cor_thresh <- 0.92
-   Sidx <- 1
+
+   flag_ERA5_BILIN <- FALSE
+
+   Sidx <- c(3)
+   flag_S6SAR_correction <- FALSE
+   if ( flag_S6SAR_correction ) {
+      path_S6SAR_correction_model <- "/home/ben/research/NOC/projects/s6-j3_tandem/analysis/S6_correction/lm_J3mS6SAR_46066_46078.Robj"
+      load(path_S6SAR_correction_model)
+   }
+   #lm_J3mS6SAR
+
    vec_tandem_labs <- c("J3","S6LRM","S6SAR")
 
    lab_month <- c("Dec (2020)","Jan (2021)","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
 
 # Offshore of neashore.
-   flag_OS <- FALSE
+   flag_OS <- TRUE
 
    if ( flag_OS ) {
 #-------------------------------------------------------------------------------------------------#
@@ -52,7 +61,7 @@
       detach()
 
 # Attach S6 SAR.
-      attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_OS.Robj")
+      attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_OS_f06.Robj")
       mat_list_S6_SAR <- list_buoy_data[[2]]
       detach()
 
@@ -66,8 +75,7 @@
       b_idx_list <- (1:52)[-c(7:14,20,22,30,33,35,46,48,51,52)]
 #-------------------------------------------------------------------------------------------------#
 # Attach J3.
-      #attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_NS.Robj")
-      attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_NS_2017-2022.Robj")
+      attach("./output/buoys_J3/list_buoy_data_swh_ocean_PAC_NS.Robj")
       mat_list_J3 <- list_buoy_data[[2]]
       detach()
 
@@ -77,13 +85,13 @@
       detach()
 
 # Attach S6 SAR.
-      attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_NS.Robj")
+      attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_NS_f06.Robj")
       mat_list_S6_SAR <- list_buoy_data[[2]]
       detach()
 # Attach ERA5.
 # "coordinates"     "latitude"        "longitude"       "time"            "wave_parameters"
 # "swh"     "p140121" "mp2"     "p140123"
-      attach("./output/ERA5/buoy_array_PAC_OS_2017-2022.Robj")
+      attach("./output/ERA5/buoy_array_PAC_NS_2020-2022.Robj")
       mat_list_ERA5 <- list_buoy_data[[2]]
       detach()
    }
@@ -160,7 +168,7 @@
 # 34 46047 (" SQRT ERROR VAR [PLOT - MED]   ** 0.243679190881128";" SQRT ERROR VAR [PLOT - ADAPT] ** 0.200267042728611")
 # 35 46086 BROKEN missing value where TRUE/FALSE needed
 # Offshore.
-   for (b_idx in 2) {
+   for (b_idx in 1) {
 
       ERA5_b_idx <- buoy_idx <- b_idx_list[b_idx]
 
@@ -289,15 +297,23 @@
                mat_list_1Hz_dist[[m_idx,S_idx]] <- apply(X=cbind(list_buoy_data1[[S_idx]][[2]],list_buoy_data1[[S_idx]][[3]]-360),MAR=1,FUN=func_buoy_dist,B_idx=buoy_idx)
 # Find points within sampling radius (no QC).
                mat_list_Lvec_buoy_samp[[m_idx,S_idx]] <- mat_list_1Hz_dist[[m_idx,S_idx]] < buoy_radius
-# Find lat and lon for sampled points.
+# Exract lat and lon for sampled points.
                mat_list_1Hz_lat[[m_idx,S_idx]] <- mat_list_buoy_data1[[m_idx,S_idx]][[2]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
                mat_list_1Hz_lon[[m_idx,S_idx]] <- mat_list_buoy_data1[[m_idx,S_idx]][[3]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
-# Find 1 Hz Hs QC information for sampled points.
+# Exract 1 Hz Hs QC information for sampled points.
                mat_list_1Hz_qual[[m_idx,S_idx]]       <- mat_list_buoy_data1[[m_idx,S_idx]][[7]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
                mat_list_1Hz_numval[[m_idx,S_idx]]     <- mat_list_buoy_data1[[m_idx,S_idx]][[8]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
                mat_list_1Hz_rms[[m_idx,S_idx]]        <- mat_list_buoy_data1[[m_idx,S_idx]][[9]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
-# 1 Hz Hs and application of QC criteria.
-               vec_hs <- vec_hs_QC <- mat_list_buoy_data1[[m_idx,S_idx]][[5]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+# Exract 1 Hz Hs.
+               vec_hs <- mat_list_buoy_data1[[m_idx,S_idx]][[5]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+# Apply linear model correction to S6SAR.
+               if ( S_idx == 3 & flag_S6SAR_correction ) {
+                  vec_hs[ vec_hs < 0.2 ] <- NA
+                  vec_hs_QC <- predict.lm(object=lm_J3mS6SAR,newdata=data.frame(S6SAR=vec_hs))
+               } else {
+                  vec_hs_QC <- vec_hs
+               }
+# Apply quality controls.
                mat_list_Lvec_QC[[m_idx,S_idx]] <- ! ( mat_list_1Hz_numval[[m_idx,S_idx]] < 16 | mat_list_1Hz_rms[[m_idx,S_idx]] > 1.0 )
                vec_hs_QC[ ! mat_list_Lvec_QC[[m_idx,S_idx]] ] <- NA
 # Assign QC Hs to mat_list_1Hz_hs.
@@ -610,12 +626,16 @@
 
    list_vec_cor <- list()
    list_vec_cor_95 <- list()
+   list_vec_rmse <- list()
+   list_vec_bias <- list()
    list_1Hz_idx_dist <- list()
 # Loop over unique tracks.
    for ( jj in 1:length(vec_unique_trackID) ) {
 # Get track length.
       i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
       list_vec_cor[[jj]] <- rep(NA,i_len_trackID)
+      list_vec_rmse[[jj]] <- rep(NA,i_len_trackID)
+      list_vec_bias[[jj]] <- rep(NA,i_len_trackID)
 # Find inter-point distance in km using an appropriate track (corresponds to vec_mode).
 # array_scale_m_idx contains the required indices.
       sc_midx <- array_scale_m_idx[1,jj,S_idx]
@@ -626,10 +646,17 @@
       list_1Hz_idx_dist[[jj]] <- c( sapply(X=1:(vec_mode_min[jj]-1),FUN=function(x) {-sum(vec_trackID_dist[x:(vec_mode_min[jj]-1)])}),
                                     0,
                                     sapply(X=(vec_mode_min[jj]):(i_len_trackID-1),FUN=function(x) {sum(vec_trackID_dist[vec_mode_min[jj]:x])}) )
-# Test for sufficient number of points to compute correlation.
+# Test for sufficient number of points to compute correlation, rmse, etc.
       for ( ii in 1:i_len_trackID ) {
          if ( sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,ii] ) ) > 10 ) {
-            list_vec_cor[[jj]][ii] <- cor(unlist(plot_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs")
+# Correlation.
+            list_vec_cor[[jj]][ii] <- cor( unlist(plot_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs" )
+# RMSE.
+            list_vec_rmse[[jj]][ii] <- sqrt( mean( (unlist(plot_data[,jj])-list_trackID_hs[[jj]][,ii])^2,na.rm=T ) )
+# Bias.
+	    mat_stat_data <- cbind(unlist(plot_data[,jj]),list_trackID_hs[[jj]][,ii])
+	    Lvec_bias <- !apply(X=mat_stat_data,MAR=1,function(x) { any(is.na(x)) })
+            list_vec_bias[[jj]][ii] <- mean(mat_stat_data[Lvec_bias,1])-mean(mat_stat_data[Lvec_bias,2])
          }
       }
       list_vec_cor_95[[jj]] <- list_vec_cor[[jj]] > cor_thresh
@@ -645,7 +672,7 @@
    if ( flag_plot_cor) {
 
       system(paste("if [ ! -d ./figures/test_sampling1/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling1/",buoy_list[buoy_idx]," &> /dev/null; fi",sep=""))
-      fig_cor_file_name <- paste("./figures/test_sampling1/",buoy_list[buoy_idx],"/track_cor_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_016.pdf",sep="")
+      fig_cor_file_name <- paste("./figures/test_sampling1/",buoy_list[buoy_idx],"/track_cor_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_016_f06.pdf",sep="")
       pdf(fig_cor_file_name,width = (4.0 * length(vec_unique_trackID)), height = 8.4)
       par(mfrow=c(2,length(vec_unique_trackID)),mar=c(5,4,4,5),mgp=c(3.1,1,0))
 
@@ -667,15 +694,54 @@
          if ( jj == 1) {
             legend(1,15,legend=c("Point closest to buoy","Correlation","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
          }
-# Histogram of collocation time differences.
+## Histogram of collocation time differences.
+#         if ( jj == 1) {
+#            hist(unlist( mat_list_time_diff_J3B )/60,breaks=30,xlim=c(0,30),main=paste("Distribution of collocation\ntime differences. Total:",sum( !is.na( unlist( mat_list_time_diff_J3B ) ) )),xlab="Time difference (minutes)")
+#         }
+      }
+#
+#      dev.off()
+#      system(paste("okular",fig_cor_file_name,"&> /dev/null &"))
+#   }
+#-------------------------------------------------------------------------------------------------#
+#   if ( flag_plot_rmse) {
+#
+#      system(paste("if [ ! -d ./figures/test_sampling1/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling1/",buoy_list[buoy_idx]," &> /dev/null; fi",sep=""))
+#      fig_rmse_file_name <- paste("./figures/test_sampling1/",buoy_list[buoy_idx],"/track_rmse_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_016.pdf",sep="")
+#      pdf(fig_rmse_file_name,width = (4.0 * length(vec_unique_trackID)), height = 4.2)
+#      par(mfrow=c(1,length(vec_unique_trackID)),mar=c(5,4,4,5),mgp=c(3.1,1,0))
+
+      for ( jj in 1:length(vec_unique_trackID) ) {
+         i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
+         title_top <- paste(vec_tandem_labs[S_idx]," [",buoy_radius," km] Track ID: ",vec_unique_trackID[[jj]],"\nBuoy: ",buoy_list[buoy_idx],sep="")
+         plot(1:i_len_trackID,list_vec_rmse[[jj]],ylim=c(-0.3,0.7),xlab="1 Hz surface distance (km)",ylab="RMSE",main=title_top,axes=F,cex.lab=1.2)
+         axis(side=2,at=seq(0.1,0.7,0.1),labels=seq(0.1,0.7,0.1))
+         axis(side=1,at=1:i_len_trackID,labels=format(list_1Hz_idx_dist[[jj]],digits=2),las=2)
+         #abline(h=c(0.95,1.0),col="grey")
+         abline(v=seq(5,40,5),col="grey")
+         abline(v=vec_mode_min[jj],col="blue")
+         points((1:i_len_trackID)[vec_mode_min[jj]],list_vec_rmse[[jj]][vec_mode_min[jj]],pch=19,col="blue")
+         par(new=T)
+# Plot BIAS.
+         plot(1:i_len_trackID,list_vec_bias[[jj]],pch=4,ylim=c(-0.5,3),axes=F,xlab="",ylab="")
+         abline(h=c(0),col="grey")
+         axis(side=4,at=seq(-0.5,1,0.25))
+         mtext("Mean bias", side=4, line=2, cex=0.8)
          if ( jj == 1) {
-            hist(unlist( mat_list_time_diff_J3B )/60,breaks=30,xlim=c(0,30),main=paste("Distribution of collocation\ntime differences. Total:",sum( !is.na( unlist( mat_list_time_diff_J3B ) ) )),xlab="Time difference (minutes)")
+            legend(1,15,legend=c("Point closest to buoy","RMSE","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
          }
+## Histogram of collocation time differences.
+#         if ( jj == 1) {
+#            hist(unlist( mat_list_time_diff_J3B )/60,breaks=30,xlim=c(0,30),main=paste("Distribution of collocation\ntime differences. Total:",sum( !is.na( unlist( mat_list_time_diff_J3B ) ) )),xlab="Time difference (minutes)")
+#         }
       }
 
       dev.off()
+      #system(paste("okular",fig_rmse_file_name,"&> /dev/null &"))
       system(paste("okular",fig_cor_file_name,"&> /dev/null &"))
    }
+#-------------------------------------------------------------------------------------------------#
+
    }
 
 #=================================================================================================#
@@ -697,9 +763,9 @@
          }
       }
    }
-#   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
-#   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
-#   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - MED]   **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - ADAPT] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_med_adapt), na.rm=T ) ) ) )
+   print(paste(" SQRT ERROR VAR [PLOT - MIN] **",sqrt( var( unlist(plot_data)-unlist(mat_list_trackID_hs_min), na.rm=T ) ) ) )
 #=================================================================================================#
    if ( flag_TC ) {
       require(ggplot2)
