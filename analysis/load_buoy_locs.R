@@ -181,8 +181,8 @@
 
    #str_region <- "PAC_ALL"
    #buoy_list <- c(buoy_list_PAC_NS,buoy_list_PAC_OS)
-   str_region <- "PAC_NS"
-   buoy_list <- c(buoy_list_PAC_NS)
+   str_region <- "PAC_OS"
+   buoy_list <- c(buoy_list_PAC_OS)
 
 # Identify lat and lon indices surrounding buoy locations (3x3).
    mat_buoy_lim <- matrix(NA,nrow=length(buoy_list),ncol=4)
