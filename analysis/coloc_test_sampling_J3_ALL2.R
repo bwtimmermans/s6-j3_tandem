@@ -48,7 +48,7 @@
 # 46013 (33: lack of sampling, 80 km, UKNOWN)
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
    #Bidx_init <- c(1:6,15:18,20:29,31,32,34)
-   Bidx_init <- c(2)
+   Bidx_init <- c(3)
 
    Sidx <- 1
    flag_tandem <- TRUE
@@ -915,6 +915,7 @@
    mat_list_rmse <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_bias <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_outlier <- matrix(list(),nrow=3,ncol=length(Bidx))
+   mat_list_sample <- matrix(list(),nrow=3,ncol=length(Bidx))
 # Specify seasonal data.
    lab_season <- c("ONDJFM","AMJJAS","annual")
    list_season_idx <- list()
@@ -967,6 +968,7 @@
          list_vec_bias <- list()
          list_1Hz_idx_dist <- list()
          list_outlier <- list()
+         list_vec_sample <- list()
 # Loop over unique tracks.
          for ( jj in 1:length(vec_unique_trackID) ) {
 # Get track length.
@@ -975,6 +977,7 @@
             list_vec_rmse[[jj]] <- rep(NA,i_len_trackID)
             list_vec_bias[[jj]] <- rep(NA,i_len_trackID)
             list_outlier[[jj]] <- matrix(NA,nrow=length(unlist(situ_data[,jj])),ncol=i_len_trackID)
+            list_vec_sample[[jj]] <- rep(NA,i_len_trackID)
 ## Find inter-point distance in km using an appropriate track (corresponds to vec_mode).
 ## array_scale_m_idx contains the required indices.
 #      sc_midx <- array_scale_m_idx[1,jj,S_idx]
@@ -994,6 +997,8 @@
                   #print(paste(" Outliers:",outlier_count)) 
                   list_outlier[[jj]][,ii] <- ! vec_err_dist > 5*sqrt(var(vec_err_dist,na.rm=T))
                   mat_pair_temp <- cbind(unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii])[list_outlier[[jj]][,ii],]
+# Sample count.
+                  list_vec_sample[[jj]][ii] <- sum( !is.na( unlist(situ_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,ii] ) )
 # Correlation.
                   list_vec_cor[[jj]][ii] <- cor( unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs" )
                   #list_vec_cor[[jj]][ii] <- cor( mat_pair_temp[,1], mat_pair_temp[,2], use="pairwise.complete.obs" )
@@ -1012,6 +1017,7 @@
          mat_list_rmse[[S_idx,b_idx]] <- list_vec_rmse
          mat_list_bias[[S_idx,b_idx]] <- list_vec_bias
          mat_list_outlier[[S_idx,b_idx]] <- list_outlier
+         mat_list_sample[[S_idx,b_idx]] <- list_vec_sample
       }
    }
 
@@ -1065,7 +1071,8 @@
             vec_counts_scale <- seq(0,200,50)
             vec_counts_ylim <- c(0,1.8 * 200)
          }
-         plot(1:i_len_trackID,sapply(X=1:i_len_trackID,FUN=function(x) { sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,x] ) ) }),pch=4,ylim=vec_counts_ylim,axes=F,xlab="",ylab="")
+         #plot(1:i_len_trackID,sapply(X=1:i_len_trackID,FUN=function(x) { sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,x] ) ) }),pch=4,ylim=vec_counts_ylim,axes=F,xlab="",ylab="")
+         plot(1:i_len_trackID,mat_list_sample[[S_idx,b_idx]][[jj]],ylim=vec_counts_ylim,axes=F,xlab="",ylab="",pch=4)
          axis(side=4,at=vec_counts_scale)
          mtext("Number of temporal samples", side=4, line=2, cex=0.8)
          if ( jj == 1) {
