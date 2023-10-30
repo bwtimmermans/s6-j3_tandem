@@ -10,34 +10,45 @@
 # Edit here
 # ----------------------------------------------------------------- #
 # Plotting and analysis.
-   flag_plot_cor <- FALSE
+   flag_plot_track_stats <- TRUE
    flag_plot_multi_cor <- FALSE
 
    flag_plot_ggmap <- FALSE
 # Correlation (COR) or mean bias (BIAS).
-   flag_plot_ggmap_COR <- TRUE
-
-   flag_TC <- FALSE
+   flag_plot_ggmap_COR <- FALSE
 
 # Sea state sampling by wave period.
    flag_period_thresh <- FALSE
    flag_swell_only <- FALSE
    period_thresh <- 8
 
+# Offshore of neashore.
+   flag_OS <- TRUE
+
 # Data and sampling.
-   #buoy_radius <- 100
-   #cor_thresh <- 0.97
-   buoy_radius <- 75
-   cor_thresh <- 0.90
+   if ( flag_OS ) {
+      buoy_radius <- 100
+      cor_thresh <- 0.97
+   } else {
+      buoy_radius <- 75
+      cor_thresh <- 0.98
+   }
+   dist_bin_width <- 10
 
    flag_ERA5_BILIN <- FALSE
 
 # OS.
-   #Bidx <- c(1:5)
+   #Bidx_init <- c(1:5)
 # NS (75 km).
 # 46085 (no data 202012, Env. Canada)
-   #Bidx <- c(1:10,12:16,18:27,29:34)
-   Bidx <- 1:5
+# Env Canada buoys all knackered from CMEMS.
+# 46248 (19: no sampling, 80 km)
+# 46029 (20: no sampling, 75 km)
+# 46022 (30: lack of sampling, 80 km, UKNOWN)
+# 46013 (33: lack of sampling, 80 km, UKNOWN)
+   #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
+   #Bidx_init <- c(1:6,15:18,20:29,31,32,34)
+   Bidx_init <- c(2)
 
    Sidx <- 1
    flag_tandem <- TRUE
@@ -47,7 +58,7 @@
       m_limit <- 60
    }
 
-   flag_S6SAR_correction <- TRUE
+   flag_S6SAR_correction <- FALSE
    if ( flag_S6SAR_correction ) {
       path_S6SAR_correction_model <- "/home/ben/research/NOC/projects/s6-j3_tandem/analysis/S6_correction/lm_J3mS6SAR_46066_46078.Robj"
       load(path_S6SAR_correction_model)
@@ -57,9 +68,6 @@
    vec_tandem_labs <- c("J3","S6LRM","S6SAR")
 
    lab_month <- c("Dec (2020)","Jan (2021)","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-
-# Offshore of neashore.
-   flag_OS <- FALSE
 
    if ( flag_OS ) {
 #-------------------------------------------------------------------------------------------------#
@@ -80,6 +88,7 @@
       detach()
 
 # Attach S6 SAR.
+      #attach("./output/buoys_S6/archive/list_buoy_data_SAR_swh_ocean_PAC_OS.Robj")
       attach("./output/buoys_S6/list_buoy_data_SAR_swh_ocean_PAC_OS_f06.Robj")
       mat_list_S6_SAR <- list_buoy_data[[2]]
       detach()
@@ -118,7 +127,7 @@
       detach()
    }
 
-#-------------------------------------------------------------------------------------------------#
+#=================================================================================================#
 # Code to approximately convert degrees to km.
 # Radius of the Earth in km.
    i_radius = 6371
@@ -157,7 +166,30 @@
       sign(y[1]-x[1]) * 2 * i_radius * asin(sqrt(fl_h))
    }
 
-#-------------------------------------------------------------------------------------------------#
+#=================================================================================================#
+# Check for valid satellite data at buoy site(s) and update list (if required).
+   Bidx_remove <- NULL
+   for (b_idx in 1:length(Bidx_init)) {
+      buoy_idx <- b_idx_list[Bidx_init[b_idx]]
+      mat_list_buoy_data1 <- list(mat_list_J3[,buoy_idx],mat_list_S6_LRM[,buoy_idx],mat_list_S6_SAR[,buoy_idx])[[Sidx]]
+      list_buoy_data1 <- mat_list_buoy_data1[[1]]
+# Find distance from buoy for all points.
+      vec_1Hz_dist <- apply(X=cbind(list_buoy_data1[[2]],list_buoy_data1[[3]]-360),MAR=1,FUN=func_buoy_dist,B_idx=buoy_idx)
+# Check for valid data to sample.
+      if ( sum(vec_1Hz_dist < buoy_radius) < 1 ) {
+         Bidx_remove <- c(Bidx_remove,b_idx)
+         print(paste("Buoy ID:",buoy_idx,"[",buoy_list[buoy_idx],"] No sampling data. Excluded."))
+      }
+   }
+   if ( !is.null(Bidx_remove) ) {
+      print(paste("New Bidx list:",paste(Bidx_init[-Bidx_remove],collapse=" ")))
+      Bidx <- Bidx_init[-Bidx_remove]
+   } else {
+      print(paste("Bidx list:",paste(Bidx_init,collapse=" ")))
+      Bidx <- Bidx_init
+   }
+
+#=================================================================================================#
 # Master lists for each buoy.
    list_B_mat_list_1Hz_dist <- list()
    list_B_mat_list_Lvec_buoy_samp <- list()
@@ -174,6 +206,7 @@
    list_B_vec_buoy_hs <- list()
    #list_B_vec_buoy_ap <- list()
 
+#=================================================================================================#
    for (b_idx in 1:length(Bidx)) {
 
       ERA5_b_idx <- buoy_idx <- b_idx_list[Bidx[b_idx]]
@@ -182,9 +215,9 @@
 # Load buoy data.
 # Buoy time offset: 946684800
 #-------------------------------------------------------------------------------------------------#
-      buoy_data_file <- list.files(path = "/home/ben/research/waves/buoy_data/NDBC_complete_records/", pattern = paste("^",buoy_list[buoy_idx],".*hs.csv",sep="") )
+      buoy_data_file <- list.files(path = "/home/ben/research/waves/buoy_data/NDBC_complete_records/", pattern = paste0("^",buoy_list[buoy_idx],".*hs.csv") )
       #buoy_data_file <- "46005_1976-2021_hs.csv"
-      mat_buoy_csv1 <- read.csv(paste("/home/ben/research/waves/buoy_data/NDBC_complete_records/",buoy_data_file,sep=""))
+      mat_buoy_csv1 <- read.csv(paste0("/home/ben/research/waves/buoy_data/NDBC_complete_records/",buoy_data_file))
       mat_buoy_csv <- mat_buoy_csv1[!is.na(mat_buoy_csv1$hs),]
 # QC for Environment Canada buoys.
       if ("hs_qc" %in% colnames(mat_buoy_csv)) {
@@ -268,81 +301,81 @@
 #=================================================================================================#
 # Process satellite data.
 #-------------------------------------------------------------------------------------------------#
-         mat_list_1Hz_dist <- matrix(list(),nrow=60,ncol=3)
+      mat_list_1Hz_dist <- matrix(list(),nrow=60,ncol=3)
 
-         mat_list_Lvec_buoy_samp <- matrix(list(),nrow=60,ncol=3)
+      mat_list_Lvec_buoy_samp <- matrix(list(),nrow=60,ncol=3)
 
-         mat_list_buoy_data1 <- matrix(list(),nrow=60,ncol=3)
+      mat_list_buoy_data1 <- matrix(list(),nrow=60,ncol=3)
 
-         mat_list_breaks_master <- matrix(list(),nrow=60,ncol=3)
+      mat_list_breaks_master <- matrix(list(),nrow=60,ncol=3)
 
-         mat_list_mean_time <- matrix(list(),nrow=60,ncol=3)
+      mat_list_mean_time <- matrix(list(),nrow=60,ncol=3)
 
-         mat_list_Xing <- matrix(list(),nrow=60,ncol=3)
-         #array_list_Xing <- array(list(),dim=c(13,3,length(b_idx_list)))
+      mat_list_Xing <- matrix(list(),nrow=60,ncol=3)
+      #array_list_Xing <- array(list(),dim=c(13,3,length(b_idx_list)))
 
-         #list_Xing_lat1 <- vector(mode = "list",length=3)
-         #mat_list_XXing <- matrix(list(),nrow=60,ncol=3)
-         mat_list_Lvec_break_dist_min_idx <- matrix(list(),nrow=60,ncol=3)
-      
-         mat_list_1Hz_lat <- matrix(list(),nrow=60,ncol=3)
-         mat_list_1Hz_lon <- matrix(list(),nrow=60,ncol=3)
-         mat_list_1Hz_hs <- matrix(list(),nrow=60,ncol=3)
-         mat_list_Lvec_QC <- matrix(list(),nrow=60,ncol=3)
-      
-         mat_list_median_hs <- matrix(list(),nrow=60,ncol=3)
-         mat_list_median_hs_min <- matrix(list(),nrow=60,ncol=3)
-         mat_list_1Hz_qual <- matrix(list(),nrow=60,ncol=3)
-         mat_list_1Hz_numval <- matrix(list(),nrow=60,ncol=3)
-         mat_list_1Hz_rms <- matrix(list(),nrow=60,ncol=3)
-         mat_list_median_hs_qual <- matrix(list(),nrow=60,ncol=3)
-         mat_list_median_hs_numval <- matrix(list(),nrow=60,ncol=3)
-         mat_list_median_hs_rms <- matrix(list(),nrow=60,ncol=3)
+      #list_Xing_lat1 <- vector(mode = "list",length=3)
+      #mat_list_XXing <- matrix(list(),nrow=60,ncol=3)
+      mat_list_Lvec_break_dist_min_idx <- matrix(list(),nrow=60,ncol=3)
+   
+      mat_list_1Hz_lat <- matrix(list(),nrow=60,ncol=3)
+      mat_list_1Hz_lon <- matrix(list(),nrow=60,ncol=3)
+      mat_list_1Hz_hs <- matrix(list(),nrow=60,ncol=3)
+      mat_list_Lvec_QC <- matrix(list(),nrow=60,ncol=3)
+   
+      mat_list_median_hs <- matrix(list(),nrow=60,ncol=3)
+      mat_list_median_hs_min <- matrix(list(),nrow=60,ncol=3)
+      mat_list_1Hz_qual <- matrix(list(),nrow=60,ncol=3)
+      mat_list_1Hz_numval <- matrix(list(),nrow=60,ncol=3)
+      mat_list_1Hz_rms <- matrix(list(),nrow=60,ncol=3)
+      mat_list_median_hs_qual <- matrix(list(),nrow=60,ncol=3)
+      mat_list_median_hs_numval <- matrix(list(),nrow=60,ncol=3)
+      mat_list_median_hs_rms <- matrix(list(),nrow=60,ncol=3)
 
 #-------------------------------------------------------------------------------------------------#
 # Loop 1: First loop over months to identify track segments.
 #-------------------------------------------------------------------------------------------------#
-         mat_list_buoy_data1 <- list(mat_list_J3[,buoy_idx],mat_list_S6_LRM[,buoy_idx],mat_list_S6_SAR[,buoy_idx])[[Sidx]]
-         for ( m_idx in 1:m_limit ) {
+      mat_list_buoy_data1 <- list(mat_list_J3[,buoy_idx],mat_list_S6_LRM[,buoy_idx],mat_list_S6_SAR[,buoy_idx])[[Sidx]]
+      for ( m_idx in 1:m_limit ) {
 # Monthly tandem data at buoy.
-            #list_buoy_data1 <- mat_list_J3[[m_idx,buoy_idx]]
-            list_buoy_data1 <- mat_list_buoy_data1[[m_idx]]
+         #list_buoy_data1 <- mat_list_J3[[m_idx,buoy_idx]]
+         list_buoy_data1 <- mat_list_buoy_data1[[m_idx]]
 
 #-------------------------------------------------------------------------------------------------#
 # Loop over missions.
-            #for (S_idx in 1:1) {
-            for (S_idx in Sidx) {
+         #for (S_idx in 1:1) {
+         for (S_idx in Sidx) {
 
 # Find distance from buoy for all points.
-               mat_list_1Hz_dist[[m_idx,S_idx]] <- apply(X=cbind(list_buoy_data1[[2]],list_buoy_data1[[3]]-360),MAR=1,FUN=func_buoy_dist,B_idx=buoy_idx)
+            mat_list_1Hz_dist[[m_idx,S_idx]] <- apply(X=cbind(list_buoy_data1[[2]],list_buoy_data1[[3]]-360),MAR=1,FUN=func_buoy_dist,B_idx=buoy_idx)
 # Find points within sampling radius (no QC).
-               mat_list_Lvec_buoy_samp[[m_idx,S_idx]] <- mat_list_1Hz_dist[[m_idx,S_idx]] < buoy_radius
+            mat_list_Lvec_buoy_samp[[m_idx,S_idx]] <- mat_list_1Hz_dist[[m_idx,S_idx]] < buoy_radius
 # Fix for out-of-orbit early S6 LRM data.
-               #if ( m_idx == 1 & S_idx == 2) { mat_list_Lvec_buoy_samp[[m_idx,S_idx]][1:141] <- FALSE }
+            #if ( m_idx == 1 & S_idx == 2) { mat_list_Lvec_buoy_samp[[m_idx,S_idx]][1:141] <- FALSE }
 # Extract lat and lon for sampled points.
-               mat_list_1Hz_lat[[m_idx,S_idx]] <- mat_list_buoy_data1[[m_idx]][[2]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
-               mat_list_1Hz_lon[[m_idx,S_idx]] <- mat_list_buoy_data1[[m_idx]][[3]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+            mat_list_1Hz_lat[[m_idx,S_idx]] <- mat_list_buoy_data1[[m_idx]][[2]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+            mat_list_1Hz_lon[[m_idx,S_idx]] <- mat_list_buoy_data1[[m_idx]][[3]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
 # Extract 1 Hz Hs QC information for sampled points.
-               mat_list_1Hz_qual[[m_idx,S_idx]]       <- mat_list_buoy_data1[[m_idx]][[7]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
-               mat_list_1Hz_numval[[m_idx,S_idx]]     <- mat_list_buoy_data1[[m_idx]][[8]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
-               mat_list_1Hz_rms[[m_idx,S_idx]]        <- mat_list_buoy_data1[[m_idx]][[9]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+            mat_list_1Hz_qual[[m_idx,S_idx]]       <- mat_list_buoy_data1[[m_idx]][[7]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+            mat_list_1Hz_numval[[m_idx,S_idx]]     <- mat_list_buoy_data1[[m_idx]][[8]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+            mat_list_1Hz_rms[[m_idx,S_idx]]        <- mat_list_buoy_data1[[m_idx]][[9]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
 # Extract 1 Hz Hs.
-               vec_hs <- mat_list_buoy_data1[[m_idx]][[5]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+            vec_hs <- mat_list_buoy_data1[[m_idx]][[5]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
 # Apply linear model correction to S6SAR.
-               if ( S_idx == 3 & flag_S6SAR_correction ) {
-                  vec_hs[ vec_hs < 0.2 ] <- NA
-                  vec_hs_QC <- predict.lm(object=lm_J3mS6SAR,newdata=data.frame(S6SAR=vec_hs))
-               } else {
-                  vec_hs_QC <- vec_hs
-               }
+            if ( S_idx == 3 & flag_S6SAR_correction ) {
+               vec_hs[ vec_hs < 0.2 ] <- NA
+               vec_hs_QC <- predict.lm(object=lm_J3mS6SAR,newdata=data.frame(S6SAR=vec_hs))
+            } else {
+               vec_hs_QC <- vec_hs
+            }
 # Apply quality controls.
-               mat_list_Lvec_QC[[m_idx,S_idx]] <- ! ( mat_list_1Hz_numval[[m_idx,S_idx]] < 16 | mat_list_1Hz_rms[[m_idx,S_idx]] > 1.0 )
-               vec_hs_QC[ ! mat_list_Lvec_QC[[m_idx,S_idx]] ] <- NA
+            mat_list_Lvec_QC[[m_idx,S_idx]] <- ! ( mat_list_1Hz_numval[[m_idx,S_idx]] < 16 | mat_list_1Hz_rms[[m_idx,S_idx]] > 1.0 )
+            vec_hs_QC[ ! mat_list_Lvec_QC[[m_idx,S_idx]] ] <- NA
 # Assign QC Hs to mat_list_1Hz_hs.
-               mat_list_1Hz_hs[[m_idx,S_idx]] <- vec_hs_QC
+            mat_list_1Hz_hs[[m_idx,S_idx]] <- vec_hs_QC
 
 # Find time stamps for sampled points.
-               nc1_time_idx_cell <- list_buoy_data1[[4]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
+            nc1_time_idx_cell <- list_buoy_data1[[4]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]]
 
 #-------------------------------------------------------------------------------------------------#
 # Loop over time stamps to identify "breaks" between separate tracks.
@@ -525,7 +558,8 @@
 # Phase 1: Fit a track and find the closest (theoretical) point to the buoy.
 # Phase 2: The closest point is used to bin each 1 Hz point.
 #-------------------------------------------------------------------------------------------------#
-   mat_dist_bins_centre <- seq(-145,145,5)
+   #vec_dist_bins_centre <- seq(-145,145,5)
+   vec_dist_bins_centre <- seq(-floor(149 / dist_bin_width)*dist_bin_width,floor(149 / dist_bin_width)*dist_bin_width,dist_bin_width)
    mat_list_tr_min_lon_lat <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_bin_coords <- matrix(list(),nrow=3,ncol=length(Bidx))
    list_B_list_tr_lm_seq <- list()
@@ -646,7 +680,9 @@
 #-------------------------------------------------------------------------------------------------#
 # Phase 2: Bin all the 1 Hz points.
 #-------------------------------------------------------------------------------------------------#
-   mat_dist_bins <- matrix(c(seq(-147.5,147.5,5)[1:59],seq(-147.5,147.5,5)[2:60]),ncol=2)
+   #mat_dist_bins <- matrix(c(seq(-147.5,147.5,5)[1:59],seq(-147.5,147.5,5)[2:60]),ncol=2)
+   vec_dist_bins <- seq( -((floor(149 / dist_bin_width)*dist_bin_width)+dist_bin_width/2), ((floor(149 / dist_bin_width)*dist_bin_width)+dist_bin_width/2),dist_bin_width )
+   mat_dist_bins <- matrix( c( vec_dist_bins[1:(length(vec_dist_bins)-1)],vec_dist_bins[2:length(vec_dist_bins)]),ncol=2)
    list_B_list_tr_lonlat_samp <- list()
 # Loop over buoys.
    for (b_idx in 1:length(Bidx)) {
@@ -683,7 +719,7 @@
                         #vec_all_dist <- sapply(X=1:dim(mat_AA)[1],FUN=function(x) { func_sat_dist1D(mat_AA[x,],rev(tr_min_lon_lat[pp_idx,])) } )
                         vec_all_dist <- sapply(X=1:dim(mat_AA)[1],FUN=function(x) { func_sat_dist1A(mat_AA[x,],rev( mat_list_tr_min_lon_lat[[S_idx,b_idx]][pp_idx,1:2] )) } )
                      }
-                     list_bins_temp[[ tr_idx[kk] ]] <- sapply(X=1:length(vec_all_dist),FUN=function(x) { which( sapply(X=1:59,FUN=function(y) { mat_dist_bins[y,1] < vec_all_dist[x] & mat_dist_bins[y,2] > vec_all_dist[x] }) ) })
+                     list_bins_temp[[ tr_idx[kk] ]] <- sapply(X=1:length(vec_all_dist),FUN=function(x) { which( sapply(X=1:length(vec_dist_bins_centre),FUN=function(y) { mat_dist_bins[y,1] < vec_all_dist[x] & mat_dist_bins[y,2] > vec_all_dist[x] }) ) })
 # Capture the sampled lon / lats in a single matrix for global storage (mostly for plotting maps).
                      mat_tr_lonlat <- rbind(mat_tr_lonlat,mat_AA)
                   }
@@ -880,22 +916,22 @@
    mat_list_bias <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_outlier <- matrix(list(),nrow=3,ncol=length(Bidx))
 # Specify seasonal data.
-   lab_season <- c("DJFMAM","JJASON","annual")
+   lab_season <- c("ONDJFM","AMJJAS","annual")
    list_season_idx <- list()
 # Annual.
    list_season_idx[[3]] <- 1:m_limit
 # DJF.
    #vec_season_idx <- as.vector(sapply(X=1:5,FUN=function(x) { c(1,2,12)+(x-1)*12 }))
-   if ( m_limit == 60 ) {
-# DJFMAM.
-      list_season_idx[[1]] <- as.vector(sapply(X=1:5,FUN=function(x) { c(1,2,3,4,5,12)+(x-1)*12 }))
-# JJASON
-      list_season_idx[[2]] <- as.vector(sapply(X=1:5,FUN=function(x) { c(6,7,8,9,10,11)+(x-1)*12 }))
+   if ( flag_tandem ) {
+# (D)JFMOND.
+      list_season_idx[[1]] <- c(1:4,11,12,13)
+# AMJJAS.
+      list_season_idx[[2]] <- 5:10
    } else {
-# DJFMAM.
-      list_season_idx[[1]] <- c(1:6,13)
-# JJASON
-      list_season_idx[[2]] <- 7:12
+# JFMOND.
+      list_season_idx[[1]] <- as.vector(sapply(X=1:5,FUN=function(x) { c(1,2,3,10,11,12)+(x-1)*12 }))
+# AMJJAS.
+      list_season_idx[[2]] <- as.vector(sapply(X=1:5,FUN=function(x) { c(4,5,6,7,8,9)+(x-1)*12 }))
    }
 
 # Loop over buoys.
@@ -905,7 +941,7 @@
    for (b_idx in 1:length(Bidx)) {
       for (S_idx in Sidx) {
 # Select target for correlation (buoy, ERA, ERA5_bilin).
-         situ_data <- mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]][list_season_idx[[season_idx]],]
+         situ_data <- as.matrix(mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]][list_season_idx[[season_idx]],])
          #situ_data <- mat_list_ERA5_hs_coloc_AD
          #situ_data <- mat_list_ERA5_hs_BILIN_coloc_AD
 
@@ -988,7 +1024,13 @@
 
 #-------------------------------------------------------------------------------------------------#
 # Along track correlations, bias, RMSE, etc.
-   if ( flag_plot_cor) {
+   if ( flag_plot_track_stats) {
+
+# X-axis (along-track bin centre) scale.
+   xlim1 <- floor( length(vec_dist_bins_centre) / 2 + 1 ) - ( 5 * floor( floor( length(vec_dist_bins_centre) / 2 ) / 5 ) )
+   xlim2 <- length(vec_dist_bins_centre) - (xlim1-1)
+   vec_stats_xlim <- seq(xlim1,xlim2,5)
+   track_centre_point <- 1+floor( length(vec_dist_bins_centre) / 2 )
 # Different figure for each satellite dataset.
    for (S_idx in Sidx) {
       plot_data <- mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]]
@@ -1007,16 +1049,24 @@
          #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz surface distance (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
          plot(1:i_len_trackID,mat_list_cor[[S_idx,b_idx]][[jj]],ylim=c(0.5,1.0),xlab="Bin distance along-track (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
          axis(side=2,at=seq(0.5,1.0,0.1),labels=seq(0.5,1.0,0.1))
-         axis(side=1,at=seq(5,55,5),labels=format(25*seq(-5,5,1),digits=2),las=2)
+         #axis(side=1,at=seq(5,55,5),labels=format(25*seq(-5,5,1),digits=2),las=2)
+         axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
          abline(h=c(0.95,1.0),col="grey")
-         abline(v=seq(5,55,5),col="grey")
-         abline(v=30,col="blue",lwd=1.5)
+         abline(v=vec_stats_xlim,col="grey")
+         abline(v=track_centre_point,col="blue",lwd=1.5)
          #points((1:i_len_trackID)[vec_mode_min[jj]],mat_list_cor[[S_idx,b_idx]][[jj]][vec_mode_min[jj]],pch=19,col="blue")
-         points(30,mat_list_cor[[S_idx,b_idx]][[jj]][30],pch=19,col="blue")
+         points(track_centre_point,mat_list_cor[[S_idx,b_idx]][[jj]][track_centre_point],pch=19,col="blue")
 
          par(new=T)
-         plot(1:i_len_trackID,sapply(X=1:i_len_trackID,FUN=function(x) { sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,x] ) ) }),pch=4,ylim=c(0,360),axes=F,xlab="",ylab="")
-         axis(side=4,at=seq(0,200,50))
+         if ( flag_tandem ) {
+            vec_counts_scale <- seq(0,50,10)
+            vec_counts_ylim <- c(0,1.8 * 50)
+         } else {
+            vec_counts_scale <- seq(0,200,50)
+            vec_counts_ylim <- c(0,1.8 * 200)
+         }
+         plot(1:i_len_trackID,sapply(X=1:i_len_trackID,FUN=function(x) { sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,x] ) ) }),pch=4,ylim=vec_counts_ylim,axes=F,xlab="",ylab="")
+         axis(side=4,at=vec_counts_scale)
          mtext("Number of temporal samples", side=4, line=2, cex=0.8)
          if ( jj == 1) {
             legend(1,250,legend=c("Point closest to buoy","Correlation","Number of temporal samples"),bg="white",pch=c(19,1,4),col=c("blue","black","black"))
@@ -1030,10 +1080,9 @@
          title_top <- paste0(vec_tandem_labs[S_idx]," [",buoy_radius," km] Track ID: ",vec_unique_trackID[[jj]])
          plot(1:i_len_trackID,mat_list_rmse[[S_idx,b_idx]][[jj]],ylim=c(-0.3,0.7),xlab="Bin distance along-track (km)",ylab="RMSE",main="",axes=F,cex.lab=1.2)
          axis(side=2,at=seq(0.1,0.7,0.1),labels=seq(0.1,0.7,0.1))
-         axis(side=1,at=seq(5,55,5),labels=format(25*seq(-5,5,1),digits=2),las=2)
-         #abline(h=c(0.95,1.0),col="grey")
-         abline(v=seq(5,55,5),col="grey")
-         abline(v=30,col="blue",lwd=1.5)
+         axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
+         abline(v=vec_stats_xlim,col="grey")
+         abline(v=track_centre_point,col="blue",lwd=1.5)
          par(new=T)
 # Plot BIAS.
          plot(1:i_len_trackID,mat_list_bias[[S_idx,b_idx]][[jj]],pch=4,ylim=c(-0.5,3),axes=F,xlab="",ylab="")
@@ -1181,7 +1230,10 @@
                         sat_1Hz_count=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_1Hz_count[[S_idx,x]]) })),
                         sat_adapt_1Hz_count=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt_1Hz_count[[S_idx,x]]) })),
                         sat_min3_1Hz_count=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3_1Hz_count[[S_idx,x]]) })),
-                        buoy_idx=unlist(sapply(X=1:length(Bidx),FUN=function(x) { rep(x,length(unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]))) })) )
+                        buoy_lab=unlist(sapply(X=1:length(Bidx),FUN=function(x) { rep(buoy_list[b_idx_list[Bidx[x]]],length(unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]))) })),
+                        track_dist=unlist( sapply( X=1:length(Bidx),FUN=function(x) {
+							 sapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
+								       	rep(mat_list_tr_min_lon_lat[[S_idx,x]][y,3], length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]][[y]])) } ) } ) ) )
 # Remove low values.
    df_reg$buoy_hs[df_reg$buoy_hs < 0.25] <- NA
    df_reg$sat_hs[df_reg$sat_hs < 0.25] <- NA
@@ -1222,25 +1274,31 @@
       lm_hs <- eval(parse(text=paste("lm(",vec_data_sets[plot_idx]," ~ buoy_hs,data=df_reg)",sep="")))
 # RMSE
       hs_rmse <- sqrt(mean(lm_hs$residuals^2))
+      hs_rmse1 <- vec_sat-df_reg$buoy_hs
 # Correlation.
       hs_cor <- cor(df_reg$buoy_hs,vec_sat,use="pairwise.complete.obs")
 # Bias.
       hs_bias <- mean(vec_sat_paired) - mean(vec_buoy_paired)
       hs_high_bias <- quantile(vec_sat_paired,probs=high_bias) - quantile(vec_buoy_paired,probs=high_bias)
 
-      plot(df_reg$buoy_hs, vec_sat, xlim=c(0,15), ylim=c(0,15), main=plot_title[plot_idx], xlab="Buoy", ylab="Sat", cex=4, cex.main=4, cex.lab=4, cex.axis=4)
+      plot(df_reg$buoy_hs, vec_sat, xlim=c(0,15), ylim=c(0,15), main=plot_title[plot_idx], xlab="Buoy", ylab="Sat", pch=19, cex=4, cex.main=4, cex.lab=4, cex.axis=4)
+      points(df_reg$buoy_hs[df_reg$track_dist > 25], vec_sat[df_reg$track_dist > 25], pch=19, cex=4, col="red")
+      if ( plot_idx == 2 ) {
+         text(df_reg$buoy_hs[hs_rmse1 > 1], vec_sat[hs_rmse1 > 1]+0.4, labels=df_reg$buoy_lab[hs_rmse1 > 1],cex=4)
+         #text(df_reg$buoy_hs[hs_rmse1 > 1], vec_sat[hs_rmse1 > 1]+0.4, labels=df_reg$track_dist[hs_rmse1 > 1],cex=4)
+      }
       segments(x0=mean(vec_buoy_paired), y0=0, y1=mean(vec_sat_paired), col="red", lwd=4)
       segments(x0=0, x1=mean(vec_buoy_paired), y0=mean(vec_sat_paired), col="red", lwd=4)
-      points(quantile(vec_buoy_paired,probs=high_bias), quantile(vec_sat_paired,probs=high_bias), col="red", pch=19)
-      segments(x0=quantile(vec_buoy_paired,probs=high_bias), y0=0, y1=quantile(vec_sat_paired,probs=high_bias), col="red", lwd=4)
-      segments(x0=0, x1=quantile(vec_buoy_paired,probs=high_bias), y0=quantile(vec_sat_paired,probs=high_bias), col="red", lwd=4)
+      #points(quantile(vec_buoy_paired,probs=high_bias), quantile(vec_sat_paired,probs=high_bias), col="red", pch=19)
+      #segments(x0=quantile(vec_buoy_paired,probs=high_bias), y0=0, y1=quantile(vec_sat_paired,probs=high_bias), col="red", lwd=4)
+      #segments(x0=0, x1=quantile(vec_buoy_paired,probs=high_bias), y0=quantile(vec_sat_paired,probs=high_bias), col="red", lwd=4)
       points(mean(vec_buoy_paired), mean(vec_sat_paired,na.rm=T), col="red", pch=19)
       abline(0, 1, col="blue", lwd=1.5)
 
       sat_mean <- mean(vec_sat_paired)
-      mtext(side=3, line=-3, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Mean bias (Sat mean = ",format(sat_mean,digits=2),"): ",format(hs_bias,digits=2),sep=''))
+      mtext(side=3, line=-6, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Mean bias (Sat mean = ",format(sat_mean,digits=2),"): ",format(hs_bias,digits=2),sep=''))
       sat_Q95 <- quantile(vec_sat_paired,probs=high_bias)
-      mtext(side=3, line=-6, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Q95 bias (Sat Q95 = ",format(sat_Q95,digits=2),"): ",format(hs_high_bias,digits=2),sep=''))
+      #mtext(side=3, line=-6, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Q95 bias (Sat Q95 = ",format(sat_Q95,digits=2),"): ",format(hs_high_bias,digits=2),sep=''))
       mtext(side=3, line=-9, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Correlation: ",format(hs_cor,digits=3),sep=''))
       mtext(side=3, line=-12, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSE: ",format(round(hs_rmse,2),nsmall=2),sep=''))
       mtext(side=3, line=-15, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("N:",sum(!is.na(vec_sat_paired))))
@@ -1298,10 +1356,10 @@
             if ( !all( is.na( mat_list_cor[[S_idx,b_idx]][[kk]] ) ) ) {
                if ( flag_plot_ggmap_COR ) {
 # Correlation plot.
-                  df_DD <- data.frame(mat_dist_bins_centre,cor=mat_list_cor[[S_idx,b_idx]][[kk]],lon=NA,lat=NA,plot_angle=plot_angle)
+                  df_DD <- data.frame(vec_dist_bins_centre,cor=mat_list_cor[[S_idx,b_idx]][[kk]],lon=NA,lat=NA,plot_angle=plot_angle)
                } else {
 # Bias plot.
-                  df_DD <- data.frame(mat_dist_bins_centre,cor=mat_list_bias[[S_idx,b_idx]][[kk]],lon=NA,lat=NA,plot_angle=plot_angle)
+                  df_DD <- data.frame(vec_dist_bins_centre,cor=mat_list_bias[[S_idx,b_idx]][[kk]],lon=NA,lat=NA,plot_angle=plot_angle)
                }
                temp_idx <- which( df_DD[,1] == mat_list_bin_coords[[S_idx,b_idx]][[kk]][1,1] )
                df_DD[temp_idx:(temp_idx-1+length(mat_list_bin_coords[[S_idx,b_idx]][[kk]][,3])),3:4] <- mat_list_bin_coords[[S_idx,b_idx]][[kk]][,2:3]
@@ -1342,9 +1400,11 @@
       if ( flag_OS ) {
          ggplot_zoom <- 5
       } else {
-         ggplot_zoom <- 5
+         ggplot_zoom <- 4
       }
-      map1 <- get_map(location = c(lon = mean(df_buoy_data[b_idx_list[Bidx],2]), lat = mean(df_buoy_data[b_idx_list[Bidx],1])), zoom = ggplot_zoom, maptype = "satellite")
+      ggmap_lon <- range(df_buoy_data[b_idx_list[Bidx],2])[1] + ( range(df_buoy_data[b_idx_list[Bidx],2])[2] - range(df_buoy_data[b_idx_list[Bidx],2])[1] ) / 2
+      ggmap_lat <- range(df_buoy_data[b_idx_list[Bidx],1])[1] + ( range(df_buoy_data[b_idx_list[Bidx],1])[2] - range(df_buoy_data[b_idx_list[Bidx],1])[1] ) / 2
+      map1 <- get_map(location = c(lon = ggmap_lon, lat = ggmap_lat), zoom = ggplot_zoom, maptype = "satellite")
 # Add transparency.
 # https://stackoverflow.com/questions/38126102/set-opacity-of-background-map-with-ggmap
       map1_attributes <- attributes(map1)
