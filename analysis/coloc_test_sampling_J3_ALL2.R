@@ -10,7 +10,7 @@
 # Edit here
 # ----------------------------------------------------------------- #
 # Plotting and analysis.
-   flag_plot_track_stats <- TRUE
+   flag_plot_track_stats <- FALSE
    flag_plot_multi_cor <- FALSE
 
    flag_plot_ggmap <- FALSE
@@ -23,7 +23,7 @@
    period_thresh <- 8
 
 # Offshore of neashore.
-   flag_OS <- TRUE
+   flag_OS <- FALSE
 
 # Data and sampling.
    if ( flag_OS ) {
@@ -38,7 +38,7 @@
    flag_ERA5_BILIN <- FALSE
 
 # OS.
-   #Bidx_init <- c(1:5)
+   #Bidx_init <- c(1,2,4:9)
 # NS (75 km).
 # 46085 (no data 202012, Env. Canada)
 # Env Canada buoys all knackered from CMEMS.
@@ -47,8 +47,8 @@
 # 46022 (30: lack of sampling, 80 km, UKNOWN)
 # 46013 (33: lack of sampling, 80 km, UKNOWN)
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
-   #Bidx_init <- c(1:6,15:18,20:29,31,32,34)
-   Bidx_init <- c(3)
+   Bidx_init <- c(1:6,15:18,21:29,31,32,34)
+   #Bidx_init <- c(26,28,31)
 
    Sidx <- 1
    flag_tandem <- TRUE
@@ -1002,7 +1002,7 @@
 # Correlation.
                   list_vec_cor[[jj]][ii] <- cor( unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs" )
                   #list_vec_cor[[jj]][ii] <- cor( mat_pair_temp[,1], mat_pair_temp[,2], use="pairwise.complete.obs" )
-# RMSE.
+# RMSD.
                   list_vec_rmse[[jj]][ii] <- sqrt( mean( (unlist(situ_data[,jj])-list_trackID_hs[[jj]][,ii])^2,na.rm=T ) )
 # Bias.
                   mat_stat_data <- cbind(unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii])
@@ -1029,7 +1029,7 @@
 #   X11(); plot(unlist(mat_list_buoy_hs_coloc_AD[,1]),list_trackID_hs[[1]][,1],xlim=c(0,8),ylim=c(0,8)); abline(0,1)
 
 #-------------------------------------------------------------------------------------------------#
-# Along track correlations, bias, RMSE, etc.
+# Along track correlations, bias, RMSD, etc.
    if ( flag_plot_track_stats) {
 
 # X-axis (along-track bin centre) scale.
@@ -1085,7 +1085,7 @@
       for ( jj in 1:length(vec_unique_trackID) ) {
          i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
          title_top <- paste0(vec_tandem_labs[S_idx]," [",buoy_radius," km] Track ID: ",vec_unique_trackID[[jj]])
-         plot(1:i_len_trackID,mat_list_rmse[[S_idx,b_idx]][[jj]],ylim=c(-0.3,0.7),xlab="Bin distance along-track (km)",ylab="RMSE",main="",axes=F,cex.lab=1.2)
+         plot(1:i_len_trackID,mat_list_rmse[[S_idx,b_idx]][[jj]],ylim=c(-0.3,0.7),xlab="Bin distance along-track (km)",ylab="RMSD",main="",axes=F,cex.lab=1.2)
          axis(side=2,at=seq(0.1,0.7,0.1),labels=seq(0.1,0.7,0.1))
          axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
          abline(v=vec_stats_xlim,col="grey")
@@ -1097,7 +1097,7 @@
          axis(side=4,at=seq(-0.5,1,0.25))
          mtext("Mean bias", side=4, line=2, cex=0.8)
          if ( jj == 1) {
-            legend(1,15,legend=c("Point closest to buoy","RMSE","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
+            legend(1,15,legend=c("Point closest to buoy","RMSD","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
          }
 ## Histogram of collocation time differences.
 #         if ( jj == 1) {
@@ -1196,10 +1196,10 @@
                list_trackID_hs_med_adapt_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,list_Lvec_cor_95[[jj]]])) })
                #mat_list_trackID_hs_med_rand[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,runif(i_len_trackID) > 0.1],na.rm=T) })
 
-               list_trackID_hs_min1[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { list_trackID_hs[[jj]][x,c(rep(FALSE,29),TRUE,rep(FALSE,29))] })
+               list_trackID_hs_min1[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-1),TRUE,rep(FALSE,(length(vec_dist_bins)/2)-1))] })
 
-               list_trackID_hs_min3[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { median(list_trackID_hs[[jj]][x,c(rep(FALSE,28),rep(TRUE,3),rep(FALSE,28))],na.rm=T) })
-               list_trackID_hs_min3_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,c(rep(FALSE,28),rep(TRUE,3),rep(FALSE,28))])) })
+               list_trackID_hs_min3[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { median(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-2),rep(TRUE,3),rep(FALSE,(length(vec_dist_bins)/2)-2))],na.rm=T) })
+               list_trackID_hs_min3_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-2),rep(TRUE,3),rep(FALSE,(length(vec_dist_bins)/2)-2))])) })
             }
 #         if ( !is.null(mat_list_trackID_hs[[m_idx,jj]]) ) {
 #            mat_list_trackID_hs_med[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,],na.rm=T) })
@@ -1245,8 +1245,8 @@
    df_reg$buoy_hs[df_reg$buoy_hs < 0.25] <- NA
    df_reg$sat_hs[df_reg$sat_hs < 0.25] <- NA
    df_reg$sat_hs_adapt[df_reg$sat_hs_adapt < 0.25] <- NA
-   df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.25] <- NA
-   df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.25] <- NA
+   df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.75] <- NA
+   df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.75] <- NA
 
 # 1 Hz counts.
    vec_1Hz_count <- c( sum(df_reg$sat_1Hz_count[!is.na(df_reg$buoy_hs)]),
@@ -1279,6 +1279,8 @@
       vec_buoy_paired <- df_reg$buoy_hs[!is.na(df_reg$buoy_hs) & !is.na(vec_sat)]
 # Regression.
       lm_hs <- eval(parse(text=paste("lm(",vec_data_sets[plot_idx]," ~ buoy_hs,data=df_reg)",sep="")))
+# RMSD
+      hs_rmsd <- sqrt( mean( ( vec_buoy_paired - vec_sat_paired )^2 ,na.rm=T ) )
 # RMSE
       hs_rmse <- sqrt(mean(lm_hs$residuals^2))
       hs_rmse1 <- vec_sat-df_reg$buoy_hs
@@ -1290,8 +1292,9 @@
 
       plot(df_reg$buoy_hs, vec_sat, xlim=c(0,15), ylim=c(0,15), main=plot_title[plot_idx], xlab="Buoy", ylab="Sat", pch=19, cex=4, cex.main=4, cex.lab=4, cex.axis=4)
       points(df_reg$buoy_hs[df_reg$track_dist > 25], vec_sat[df_reg$track_dist > 25], pch=19, cex=4, col="red")
-      if ( plot_idx == 2 ) {
-         text(df_reg$buoy_hs[hs_rmse1 > 1], vec_sat[hs_rmse1 > 1]+0.4, labels=df_reg$buoy_lab[hs_rmse1 > 1],cex=4)
+      if ( any( plot_idx == c(2,4) ) ) {
+         #text(df_reg$buoy_hs[hs_rmse1 > 1], vec_sat[hs_rmse1 > 1]+0.4, labels=df_reg$buoy_lab[hs_rmse1 > 1],cex=4)
+         text(df_reg$buoy_hs[hs_rmse1 < -2], vec_sat[hs_rmse1 < -2]+0.4, labels=df_reg$buoy_lab[hs_rmse1 < -2],cex=4)
          #text(df_reg$buoy_hs[hs_rmse1 > 1], vec_sat[hs_rmse1 > 1]+0.4, labels=df_reg$track_dist[hs_rmse1 > 1],cex=4)
       }
       segments(x0=mean(vec_buoy_paired), y0=0, y1=mean(vec_sat_paired), col="red", lwd=4)
@@ -1307,9 +1310,10 @@
       sat_Q95 <- quantile(vec_sat_paired,probs=high_bias)
       #mtext(side=3, line=-6, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Q95 bias (Sat Q95 = ",format(sat_Q95,digits=2),"): ",format(hs_high_bias,digits=2),sep=''))
       mtext(side=3, line=-9, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Correlation: ",format(hs_cor,digits=3),sep=''))
-      mtext(side=3, line=-12, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSE: ",format(round(hs_rmse,2),nsmall=2),sep=''))
-      mtext(side=3, line=-15, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("N:",sum(!is.na(vec_sat_paired))))
-      mtext(side=3, line=-18, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Total 1 Hz:",vec_1Hz_count[plot_idx]))
+      mtext(side=3, line=-12, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSD: ",format(round(hs_rmsd,3),nsmall=2),sep=''))
+      mtext(side=3, line=-15, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSE: ",format(round(hs_rmse,3),nsmall=2),sep=''))
+      mtext(side=3, line=-18, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("N:",sum(!is.na(vec_sat_paired))))
+      mtext(side=3, line=-21, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Total 1 Hz:",vec_1Hz_count[plot_idx]))
    }
 
    dev.off()
