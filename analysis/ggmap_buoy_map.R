@@ -12,13 +12,15 @@
    source("/home/ben/research/NOC/projects/s6-j3_tandem/analysis/load_buoy_locs.R")
 
    str_region <- "PAC_ALL"
-   buoy_list <- c(buoy_list_PAC_NS,buoy_list_PAC_OS[-c(1:2)])
+   buoy_list_PAC_NS_lab <- buoy_list_PAC_NS[-c(7:14,20,22,30,33,35,46,48,51,52)][c(1:6,15:18,21:29,31,32,34)]
+   buoy_list <- c(buoy_list_PAC_NS_lab,buoy_list_PAC_OS[-c(1:4)])
 
    dd_temp <- NULL
    for (b_idx in 1:length(buoy_list)) {
       eval(parse(text=paste("dd_temp <- rbind(buoy_",rev(buoy_list)[b_idx],",dd_temp)",sep="")))
    }
-   dd <- dd_temp[-c(7:14,20,22,30,33,35,46,48,51,52),]
+   dd <- dd_temp
+   dd$situ[25] <- "OS_bias"
 
 # ================================================================= #
 # Edit here
@@ -44,7 +46,7 @@
 
 #-------------------------------------------------------------------------------------------------#
 # Using Google Maps.
-   map1 <- get_map(location = c(lon = -145,lat = 45), zoom = 4, maptype = "satellite")
+   map1 <- get_map(location = c(lon = -140,lat = 48), zoom = 4, maptype = "satellite")
 # Add transparency.
 # https://stackoverflow.com/questions/38126102/set-opacity-of-background-map-with-ggmap
    map1_attributes <- attributes(map1)
@@ -65,18 +67,19 @@
          #geom_polygon(data = map_data("world"), aes(x = long, y = lat, group = group), color = "#000000", fill = NA, linewidth = 0.35) +
           #geom_polygon(data = map_data("state"), aes(x = long, y = lat, group = group), color = "#000000", fill = NA, size = 0.15) +
 # Buoy symbols.
-         geom_point(data = dd, aes(x=buoy_lon, y=buoy_lat, fill=situ), size=7, shape=23, stroke=2) +
+         geom_point(data = dd, aes(x=buoy_lon, y=buoy_lat, fill=situ), size=9, shape=23, stroke=2) +
          #scale_fill_viridis_d() +
-         scale_fill_manual(values = c('blue','yellow')) +
-         geom_label(data = dd[dd$name %in% c(46246,46001,46002,46005,46006),], aes(x=buoy_lon, y=buoy_lat, label=name), label.padding = unit(0.30, "lines"), size = 8, nudge_x = x_nudge, nudge_y = y_nudge) +
+         scale_fill_manual(values = c('blue','yellow','red')) +
+         geom_label(data = dd[dd$name %in% buoy_list_PAC_OS[-c(1:4)],], aes(x=buoy_lon, y=buoy_lat, label=name), label.padding = unit(0.30, "lines"), size = 8, nudge_x = x_nudge, nudge_y = y_nudge) +
+         geom_label(data = dd[dd$name %in% buoy_list_PAC_NS_lab,], aes(x=buoy_lon, y=buoy_lat, label=name), label.padding = unit(0.30, "lines"), size = 5, nudge_x = x_nudge, nudge_y = y_nudge) +
 ## Area boxes (in blue).
 #         geom_rect(data=df_rect,mapping=aes(xmin=x1,xmax=x2,ymin=y1,ymax=y2), color="blue", alpha=0.0) +
 #         geom_text(data=df_rect,aes(x=x1+0.9*(x2-x1),y=y1+0.2*(y2-y1),label=r),size=6) +
 # Theme stuff.
          theme(axis.title.x=element_blank(),
                axis.title.y=element_blank(),
-               axis.text.x = element_text(size = 20),
-               axis.text.y = element_text(size = 20),
+               axis.text.x = element_text(size = 30),
+               axis.text.y = element_text(size = 30),
                legend.text = element_text(size = 30,margin = margin(b = 10, t = 10, unit = "pt")),
                legend.title = element_text(size = 30) )
 
