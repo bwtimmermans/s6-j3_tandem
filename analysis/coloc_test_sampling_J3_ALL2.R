@@ -12,6 +12,7 @@
 # Plotting and analysis.
    flag_plot_track_stats <- FALSE
    flag_plot_multi_cor <- FALSE
+   flag_single_panel <- FALSE
 
    flag_plot_ggmap <- FALSE
 # Correlation (COR) or mean bias (BIAS).
@@ -27,12 +28,24 @@
 
 # Data and sampling.
    if ( flag_OS ) {
+      #str_region <- "PAC_OS"
+      #buoy_list <- c(buoy_list_PAC_OS)
+
       buoy_radius <- 100
-      cor_thresh <- 0.97
+      cor_thresh <- 0.98
+# Omit 46246.
+      Bidx_init <- c(1,2,4:9)
    } else {
+      #str_region <- "PAC_NS"
+      #buoy_list <- c(buoy_list_PAC_NS)
+
       buoy_radius <- 75
       cor_thresh <- 0.98
+
+      Bidx_init <- c(1:6,15:18,21:29,31,32,34)
    }
+
+# Bin width for along-track sampling.
    dist_bin_width <- 10
 
    flag_ERA5_BILIN <- FALSE
@@ -47,10 +60,9 @@
 # 46022 (30: lack of sampling, 80 km, UKNOWN)
 # 46013 (33: lack of sampling, 80 km, UKNOWN)
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
-   Bidx_init <- c(1:6,15:18,21:29,31,32,34)
-   #Bidx_init <- c(26,28,31)
+   #Bidx_init <- c(1:6,15:18,21:29,31,32,34)
 
-   Sidx <- 1
+   Sidx <- 3
    flag_tandem <- TRUE
    if ( flag_tandem ) {
       m_limit <- 13
@@ -1254,25 +1266,61 @@
                        sum(!is.na(df_reg$buoy_hs) & !is.na(df_reg$sat_hs_min1)),
                        sum(df_reg$sat_min3_1Hz_count[!is.na(df_reg$buoy_hs)]) )
 
-   high_bias <- 0.95
+   high_bias <- 0.75
    vec_data_sets <- c("sat_hs","sat_hs_adapt","sat_hs_min1","sat_hs_min3")
-   plot_title <- c("Track median",paste("Adaptive (cor > ",cor_thresh,")",sep=""),paste("1 Hz nearest to buoy",sep=""),paste("Median 3 nearest to buoy",sep=""))
-   cex_mtext <- 3
 
-   if ( length(Bidx) <= 2 ) {
-      fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",paste(buoy_list[b_idx_list[Bidx]]),"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_",paste(buoy_list[b_idx_list[Bidx]],collapse='_'),"_",gsub('[.]','',cor_thresh),".png")
+# Single-panel plotting.
+   if ( flag_single_panel ) {
+# Plotting parameters.
+      pl_mfrow <- c(1,1)
+      pl_oma <- c(6,7,2,6)
+      pl_mar <- c(18,18,16,7)
+      pl_mgp <- c(12,6,0)
+      pl_cex <- 6; pl_cex_main <- 11; pl_cex_lab <- 7; pl_cex_axis <- 9; pl_cex_leg <- 8
+
+      vec_plot_idx <- 2
+
+      if ( flag_OS ) {
+         plot_title <- c("J-3 Offshore","S6-MF LR Offshore","S6-MF HR Offshore")[Sidx]
+      } else {
+         plot_title <- c("J-3 Nearshore","S6-MF LR Nearshore","S6-MF HR Nearshore")[Sidx]
+      }
+
+      cex_mtext <- 8
+
+      if ( length(Bidx) <= 2 ) {
+         fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",paste(buoy_list[b_idx_list[Bidx]]),"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_",paste(buoy_list[b_idx_list[Bidx]],collapse='_'),"_",gsub('[.]','',cor_thresh),"_ADAPT.png")
+      } else {
+         fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",fig_lab_region,"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_BUOYS_",gsub('[.]','',cor_thresh),"_ADAPT.png")
+# Multi-panel plotting.
+      }
    } else {
-      fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",fig_lab_region,"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_BUOYS_",gsub('[.]','',cor_thresh),".png")
+# Plotting parameters.
+      pl_mfrow <- c(2,2)
+      pl_oma <- c(2,2,2,2)
+      pl_mar <- c(12,14,8,5)
+      pl_mgp <- c(9,3,0)
+      pl_cex <- 4; pl_cex_main <- 6; pl_cex_lab <- 6; pl_cex_axis <- 5; pl_cex_leg <- 5
+
+      vec_plot_idx <- 1:4
+
+      plot_title <- c("Track median",paste("Adaptive (cor > ",cor_thresh,")",sep=""),paste("1 Hz nearest to buoy",sep=""),paste("Median 3 nearest to buoy",sep=""))
+
+      cex_mtext <- 4
+      
+      if ( length(Bidx) <= 2 ) {
+         fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",paste(buoy_list[b_idx_list[Bidx]]),"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_",paste(buoy_list[b_idx_list[Bidx]],collapse='_'),"_",gsub('[.]','',cor_thresh),"_MULTI.png")
+      } else {
+         fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",fig_lab_region,"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_BUOYS_",gsub('[.]','',cor_thresh),"_MULTI.png")
+      }
    }
 
    png(fig_scatter_adapt_nearest_file_name, width = 3000, height = 3000)
-   #par(mfrow=c(2,2),oma=c(8,8,8,9),mar=c(12,14,9,9),mgp=c(9,4,0))
-   #X11()
-
-   par(mfrow=c(2,2),oma=c(3,3,3,3),mar=c(9,9,5,5),mgp=c(6,2,0))
+   par(mfrow=pl_mfrow,oma=pl_oma,mar=pl_mar,mgp=pl_mgp)
 
 # Plot four panels, for the different sampling approaches.
-   for (plot_idx in 1:4) {
+   for (p_idx in 1:length(vec_plot_idx)) {
+      plot_idx <- vec_plot_idx[p_idx]
 # Specify sat data.
       vec_sat <- df_reg[,plot_idx+1]
       vec_sat_paired <- vec_sat[!is.na(df_reg$buoy_hs) & !is.na(vec_sat)]
@@ -1290,30 +1338,34 @@
       hs_bias <- mean(vec_sat_paired) - mean(vec_buoy_paired)
       hs_high_bias <- quantile(vec_sat_paired,probs=high_bias) - quantile(vec_buoy_paired,probs=high_bias)
 
-      plot(df_reg$buoy_hs, vec_sat, xlim=c(0,15), ylim=c(0,15), main=plot_title[plot_idx], xlab="Buoy", ylab="Sat", pch=19, cex=4, cex.main=4, cex.lab=4, cex.axis=4)
-      points(df_reg$buoy_hs[df_reg$track_dist > 25], vec_sat[df_reg$track_dist > 25], pch=19, cex=4, col="red")
+      plot(df_reg$buoy_hs, vec_sat, xlim=c(0,10), ylim=c(0,10), main=plot_title[p_idx], xlab="Buoy", ylab="Sat", pch=19, cex=pl_cex, cex.main=pl_cex_main, cex.lab=pl_cex_lab, cex.axis=pl_cex_axis)
+      points(df_reg$buoy_hs[df_reg$track_dist > 25], vec_sat[df_reg$track_dist > 25], pch=19, cex=(pl_cex-1), col="red")
       if ( any( plot_idx == c(2,4) ) ) {
          #text(df_reg$buoy_hs[hs_rmse1 > 1], vec_sat[hs_rmse1 > 1]+0.4, labels=df_reg$buoy_lab[hs_rmse1 > 1],cex=4)
          text(df_reg$buoy_hs[hs_rmse1 < -2], vec_sat[hs_rmse1 < -2]+0.4, labels=df_reg$buoy_lab[hs_rmse1 < -2],cex=4)
          #text(df_reg$buoy_hs[hs_rmse1 > 1], vec_sat[hs_rmse1 > 1]+0.4, labels=df_reg$track_dist[hs_rmse1 > 1],cex=4)
       }
-      segments(x0=mean(vec_buoy_paired), y0=0, y1=mean(vec_sat_paired), col="red", lwd=4)
-      segments(x0=0, x1=mean(vec_buoy_paired), y0=mean(vec_sat_paired), col="red", lwd=4)
+      #segments(x0=mean(vec_buoy_paired), y0=0, y1=mean(vec_sat_paired), col="red", lwd=4)
+      #segments(x0=0, x1=mean(vec_buoy_paired), y0=mean(vec_sat_paired), col="red", lwd=4)
       #points(quantile(vec_buoy_paired,probs=high_bias), quantile(vec_sat_paired,probs=high_bias), col="red", pch=19)
       #segments(x0=quantile(vec_buoy_paired,probs=high_bias), y0=0, y1=quantile(vec_sat_paired,probs=high_bias), col="red", lwd=4)
       #segments(x0=0, x1=quantile(vec_buoy_paired,probs=high_bias), y0=quantile(vec_sat_paired,probs=high_bias), col="red", lwd=4)
       points(mean(vec_buoy_paired), mean(vec_sat_paired,na.rm=T), col="red", pch=19)
-      abline(0, 1, col="blue", lwd=1.5)
+      abline(0, 1, col="blue", lwd=3.0)
 
       sat_mean <- mean(vec_sat_paired)
       mtext(side=3, line=-6, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Mean bias (Sat mean = ",format(sat_mean,digits=2),"): ",format(hs_bias,digits=2),sep=''))
       sat_Q95 <- quantile(vec_sat_paired,probs=high_bias)
       #mtext(side=3, line=-6, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Q95 bias (Sat Q95 = ",format(sat_Q95,digits=2),"): ",format(hs_high_bias,digits=2),sep=''))
-      mtext(side=3, line=-9, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Correlation: ",format(hs_cor,digits=3),sep=''))
-      mtext(side=3, line=-12, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSD: ",format(round(hs_rmsd,3),nsmall=2),sep=''))
-      mtext(side=3, line=-15, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSE: ",format(round(hs_rmse,3),nsmall=2),sep=''))
-      mtext(side=3, line=-18, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("N:",sum(!is.na(vec_sat_paired))))
-      mtext(side=3, line=-21, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Total 1 Hz:",vec_1Hz_count[plot_idx]))
+      mtext(side=3, line=-12, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Correlation: ",format(hs_cor,digits=3),sep=''))
+      mtext(side=3, line=-18, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSD: ",format(round(hs_rmsd,3),nsmall=2),sep=''))
+      mtext(side=3, line=-24, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("RMSE: ",format(round(hs_rmse,3),nsmall=2),sep=''))
+      mtext(side=3, line=-30, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("N:",sum(!is.na(vec_sat_paired))))
+      mtext(side=3, line=-36, adj=0.03, cex=cex_mtext, outer=FALSE, text=paste("Total 1 Hz:",vec_1Hz_count[plot_idx]))
+# Legend for red and black dots.
+      if ( plot_idx == 1 ) {
+         legend(x=5.5,y=1.5,legend=c("< 25 km from buoy","> 25 km from buoy"),col=c("black","red"),pch=c(19,19),cex=pl_cex_leg)
+      }
    }
 
    dev.off()
