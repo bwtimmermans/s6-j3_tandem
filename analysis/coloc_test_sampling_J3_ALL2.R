@@ -13,14 +13,14 @@
    flag_plot_track_stats <- FALSE
    flag_plot_multi_cor <- FALSE
 
-   flag_scatter_plot <- TRUE
+   flag_scatter_plot <- FALSE
    flag_single_panel <- FALSE
 
    flag_buoy_bias_hist <- FALSE
 
-   flag_plot_ggmap <- FALSE
+   flag_plot_ggmap <- TRUE
 # Correlation (COR) or mean bias (BIAS).
-   flag_plot_ggmap_COR <- TRUE
+   flag_plot_ggmap_COR <- FALSE
 
 # Sea state sampling by wave period.
    flag_period_thresh <- FALSE
@@ -40,7 +40,7 @@
 # Omit 46246.
 # 46066(1) doesn't work for tandem phase.
       Bidx_init <- c(1,2,4:9)
-      Bidx_init <- 8
+      Bidx_init <- 4
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -199,7 +199,7 @@
 #       3 = radius
 
    array_radius_stats <- array(NA,dim=c(7,4,10))
-   vec_buoy_radius <- c(80)
+   vec_buoy_radius <- c(110)
 
    for ( i_buoy_radius in 1:1 ) {
       buoy_radius <- vec_buoy_radius[i_buoy_radius]
@@ -999,48 +999,48 @@
    }
 
 # Loop over buoys.
-   for (season_idx in 1:3) {
+   for (season_idx in 2:2) {
 
 # Loop over (active) buoys.
-   for (b_idx in (1:length(Bidx))[vec_B_active]) {
-      for (S_idx in Sidx) {
+      for (b_idx in (1:length(Bidx))[vec_B_active]) {
+         for (S_idx in Sidx) {
 # Select target for correlation (buoy, ERA, ERA5_bilin).
-         situ_data <- as.matrix(mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]][list_season_idx[[season_idx]],])
-         #situ_data <- mat_list_ERA5_hs_coloc_AD
-         #situ_data <- mat_list_ERA5_hs_BILIN_coloc_AD
+            situ_data <- as.matrix(mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]][list_season_idx[[season_idx]],])
+            #situ_data <- mat_list_ERA5_hs_coloc_AD
+            #situ_data <- mat_list_ERA5_hs_BILIN_coloc_AD
 
-         vec_unique_trackID <- unique(unlist(array_list_XXing[,S_idx,b_idx]))
+            vec_unique_trackID <- unique(unlist(array_list_XXing[,S_idx,b_idx]))
 
 # Assign from array.
-         #mat_list_trackID <- as.matrix( array_list_trackID[[S_idx,b_idx]] )
+            #mat_list_trackID <- as.matrix( array_list_trackID[[S_idx,b_idx]] )
 # Assign annual data to anaylsis.
-         #list_trackID_hs <- mat_list_trackID_hs1[[S_idx,b_idx]]
+            #list_trackID_hs <- mat_list_trackID_hs1[[S_idx,b_idx]]
 # Assign seasonal data to anaylsis.
-         list_trackID_hs <- list()
-         for ( jj in 1:length(vec_unique_trackID) ) {
-            mat_temp <- NULL
-            for ( s_idx in list_season_idx[[season_idx]] ) {
-               mat_temp <- rbind(mat_temp,mat_list_trackID_hs_monthly[[S_idx,b_idx]][[jj]][[s_idx]])
+            list_trackID_hs <- list()
+            for ( jj in 1:length(vec_unique_trackID) ) {
+               mat_temp <- NULL
+               for ( s_idx in list_season_idx[[season_idx]] ) {
+                  mat_temp <- rbind(mat_temp,mat_list_trackID_hs_monthly[[S_idx,b_idx]][[jj]][[s_idx]])
+               }
+               list_trackID_hs[[jj]] <- mat_temp
             }
-            list_trackID_hs[[jj]] <- mat_temp
-         }
 
-         list_vec_cor <- list()
-         list_Lvec_cor_95 <- list()
-         list_vec_rmse <- list()
-         list_vec_bias <- list()
-         list_1Hz_idx_dist <- list()
-         list_outlier <- list()
-         list_vec_sample <- list()
+            list_vec_cor <- list()
+            list_Lvec_cor_95 <- list()
+            list_vec_rmse <- list()
+            list_vec_bias <- list()
+            list_1Hz_idx_dist <- list()
+            list_outlier <- list()
+            list_vec_sample <- list()
 # Loop over unique tracks.
-         for ( jj in 1:length(vec_unique_trackID) ) {
+            for ( jj in 1:length(vec_unique_trackID) ) {
 # Get track length.
-            i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
-            list_vec_cor[[jj]] <- rep(NA,i_len_trackID)
-            list_vec_rmse[[jj]] <- rep(NA,i_len_trackID)
-            list_vec_bias[[jj]] <- rep(NA,i_len_trackID)
-            list_outlier[[jj]] <- matrix(NA,nrow=length(unlist(situ_data[,jj])),ncol=i_len_trackID)
-            list_vec_sample[[jj]] <- rep(NA,i_len_trackID)
+               i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
+               list_vec_cor[[jj]] <- rep(NA,i_len_trackID)
+               list_vec_rmse[[jj]] <- rep(NA,i_len_trackID)
+               list_vec_bias[[jj]] <- rep(NA,i_len_trackID)
+               list_outlier[[jj]] <- matrix(NA,nrow=length(unlist(situ_data[,jj])),ncol=i_len_trackID)
+               list_vec_sample[[jj]] <- rep(NA,i_len_trackID)
 ## Find inter-point distance in km using an appropriate track (corresponds to vec_mode).
 ## array_scale_m_idx contains the required indices.
 #      sc_midx <- array_scale_m_idx[1,jj,S_idx]
@@ -1052,37 +1052,37 @@
 #                                    0,
 #                                    sapply(X=(vec_mode_min[jj]):(i_len_trackID-1),FUN=function(x) {sum(vec_trackID_dist[vec_mode_min[jj]:x])}) )
 # Test for sufficient number of points to compute correlation, rmse, etc.
-            for ( ii in 1:i_len_trackID ) {
-               if ( sum( !is.na( unlist(situ_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,ii] ) ) > 10 ) {
+               for ( ii in 1:i_len_trackID ) {
+                  if ( sum( !is.na( unlist(situ_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,ii] ) ) > 10 ) {
 # Print outliers.
-                  vec_err_dist <- (unlist(situ_data[,jj]) - list_trackID_hs[[jj]][,ii]) / ( (unlist(situ_data[,jj]) + list_trackID_hs[[jj]][,ii]) / 2 )
-                  #outlier_count <- sum( vec_err_dist > 4*sqrt(var(vec_err_dist,na.rm=T)), na.rm=T )
-                  #print(paste(" Outliers:",outlier_count)) 
-                  list_outlier[[jj]][,ii] <- ! vec_err_dist > 5*sqrt(var(vec_err_dist,na.rm=T))
-                  mat_pair_temp <- cbind(unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii])[list_outlier[[jj]][,ii],]
+                     vec_err_dist <- (unlist(situ_data[,jj]) - list_trackID_hs[[jj]][,ii]) / ( (unlist(situ_data[,jj]) + list_trackID_hs[[jj]][,ii]) / 2 )
+                     #outlier_count <- sum( vec_err_dist > 4*sqrt(var(vec_err_dist,na.rm=T)), na.rm=T )
+                     #print(paste(" Outliers:",outlier_count)) 
+                     list_outlier[[jj]][,ii] <- ! vec_err_dist > 5*sqrt(var(vec_err_dist,na.rm=T))
+                     mat_pair_temp <- cbind(unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii])[list_outlier[[jj]][,ii],]
 # Sample count.
-                  list_vec_sample[[jj]][ii] <- sum( !is.na( unlist(situ_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,ii] ) )
+                     list_vec_sample[[jj]][ii] <- sum( !is.na( unlist(situ_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,ii] ) )
 # Correlation.
-                  list_vec_cor[[jj]][ii] <- cor( unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs" )
-                  #list_vec_cor[[jj]][ii] <- cor( mat_pair_temp[,1], mat_pair_temp[,2], use="pairwise.complete.obs" )
+                     list_vec_cor[[jj]][ii] <- cor( unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii],use="pairwise.complete.obs" )
+                     #list_vec_cor[[jj]][ii] <- cor( mat_pair_temp[,1], mat_pair_temp[,2], use="pairwise.complete.obs" )
 # RMSD.
-                  list_vec_rmse[[jj]][ii] <- sqrt( mean( (unlist(situ_data[,jj])-list_trackID_hs[[jj]][,ii])^2,na.rm=T ) )
+                     list_vec_rmse[[jj]][ii] <- sqrt( mean( (unlist(situ_data[,jj])-list_trackID_hs[[jj]][,ii])^2,na.rm=T ) )
 # Bias.
-                  mat_stat_data <- cbind(unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii])
-                  Lvec_bias <- !apply(X=mat_stat_data,MAR=1,function(x) { any(is.na(x)) })
-                  list_vec_bias[[jj]][ii] <- mean(mat_stat_data[Lvec_bias,1])-mean(mat_stat_data[Lvec_bias,2])
+                     mat_stat_data <- cbind(unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii])
+                     Lvec_bias <- !apply(X=mat_stat_data,MAR=1,function(x) { any(is.na(x)) })
+                     list_vec_bias[[jj]][ii] <- mean(mat_stat_data[Lvec_bias,1])-mean(mat_stat_data[Lvec_bias,2])
+                  }
                }
+               list_Lvec_cor_95[[jj]] <- list_vec_cor[[jj]] > cor_thresh
             }
-            list_Lvec_cor_95[[jj]] <- list_vec_cor[[jj]] > cor_thresh
+            mat_list_cor[[S_idx,b_idx]] <- list_vec_cor
+            mat_list_cor_95[[S_idx,b_idx]] <- list_Lvec_cor_95
+            mat_list_rmse[[S_idx,b_idx]] <- list_vec_rmse
+            mat_list_bias[[S_idx,b_idx]] <- list_vec_bias
+            mat_list_outlier[[S_idx,b_idx]] <- list_outlier
+            mat_list_sample[[S_idx,b_idx]] <- list_vec_sample
          }
-         mat_list_cor[[S_idx,b_idx]] <- list_vec_cor
-         mat_list_cor_95[[S_idx,b_idx]] <- list_Lvec_cor_95
-         mat_list_rmse[[S_idx,b_idx]] <- list_vec_rmse
-         mat_list_bias[[S_idx,b_idx]] <- list_vec_bias
-         mat_list_outlier[[S_idx,b_idx]] <- list_outlier
-         mat_list_sample[[S_idx,b_idx]] <- list_vec_sample
       }
-   }
 
 #-------------------------------------------------------------------------------------------------#
 # Plotting.
@@ -1093,88 +1093,87 @@
 
 #-------------------------------------------------------------------------------------------------#
 # Along track correlations, bias, RMSD, etc.
-   if ( flag_plot_track_stats) {
+      if ( flag_plot_track_stats) {
 
 # X-axis (along-track bin centre) scale.
-   xlim1 <- floor( length(vec_dist_bins_centre) / 2 + 1 ) - ( 5 * floor( floor( length(vec_dist_bins_centre) / 2 ) / 5 ) )
-   xlim2 <- length(vec_dist_bins_centre) - (xlim1-1)
-   vec_stats_xlim <- seq(xlim1,xlim2,5)
-   track_centre_point <- 1+floor( length(vec_dist_bins_centre) / 2 )
+         xlim1 <- floor( length(vec_dist_bins_centre) / 2 + 1 ) - ( 5 * floor( floor( length(vec_dist_bins_centre) / 2 ) / 5 ) )
+         xlim2 <- length(vec_dist_bins_centre) - (xlim1-1)
+         vec_stats_xlim <- seq(xlim1,xlim2,5)
+         track_centre_point <- 1+floor( length(vec_dist_bins_centre) / 2 )
 # Different figure for each satellite dataset.
-   for (S_idx in Sidx) {
-      plot_data <- mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]]
-      vec_unique_trackID <- unique(unlist(array_list_XXing[,S_idx,b_idx]))
-      list_trackID_hs <- mat_list_trackID_hs1[[S_idx,b_idx]]
+         for (S_idx in Sidx) {
+            plot_data <- mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]]
+            vec_unique_trackID <- unique(unlist(array_list_XXing[,S_idx,b_idx]))
+            list_trackID_hs <- mat_list_trackID_hs1[[S_idx,b_idx]]
 
-      system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
-      fig_cor_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/track_cor_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_f06_",lab_season[season_idx],".pdf")
-      pdf(fig_cor_file_name,width = (4.0 * length(vec_unique_trackID)), height = 8)
-      par(mfrow=c(2,length(vec_unique_trackID)),mar=c(5,4,1,4),mgp=c(3.1,1,0),oma=c(0,1,3,0))
+            system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
+            fig_cor_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/track_cor_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_f06_",lab_season[season_idx],".pdf")
+            pdf(fig_cor_file_name,width = (4.0 * length(vec_unique_trackID)), height = 8)
+            par(mfrow=c(2,length(vec_unique_trackID)),mar=c(5,4,1,4),mgp=c(3.1,1,0),oma=c(0,1,3,0))
 
-      for ( jj in 1:length(vec_unique_trackID) ) {
-         i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
-         title_top <- paste0("Track ID: ",vec_unique_trackID[[jj]])
-         #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=paste("Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx]),axes=F)
-         #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz surface distance (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
-         plot(1:i_len_trackID,mat_list_cor[[S_idx,b_idx]][[jj]],ylim=c(0.5,1.0),xlab="Bin distance along-track (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
-         axis(side=2,at=seq(0.5,1.0,0.1),labels=seq(0.5,1.0,0.1))
-         #axis(side=1,at=seq(5,55,5),labels=format(25*seq(-5,5,1),digits=2),las=2)
-         axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
-         abline(h=c(0.95,1.0),col="grey")
-         abline(v=vec_stats_xlim,col="grey")
-         abline(v=track_centre_point,col="blue",lwd=1.5)
-         #points((1:i_len_trackID)[vec_mode_min[jj]],mat_list_cor[[S_idx,b_idx]][[jj]][vec_mode_min[jj]],pch=19,col="blue")
-         points(track_centre_point,mat_list_cor[[S_idx,b_idx]][[jj]][track_centre_point],pch=19,col="blue")
+            for ( jj in 1:length(vec_unique_trackID) ) {
+               i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
+               title_top <- paste0("Track ID: ",vec_unique_trackID[[jj]])
+               #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=paste("Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx]),axes=F)
+               #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz surface distance (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
+               plot(1:i_len_trackID,mat_list_cor[[S_idx,b_idx]][[jj]],ylim=c(0.5,1.0),xlab="Bin distance along-track (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
+               axis(side=2,at=seq(0.5,1.0,0.1),labels=seq(0.5,1.0,0.1))
+               #axis(side=1,at=seq(5,55,5),labels=format(25*seq(-5,5,1),digits=2),las=2)
+               axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
+               abline(h=c(0.95,1.0),col="grey")
+               abline(v=vec_stats_xlim,col="grey")
+               abline(v=track_centre_point,col="blue",lwd=1.5)
+               #points((1:i_len_trackID)[vec_mode_min[jj]],mat_list_cor[[S_idx,b_idx]][[jj]][vec_mode_min[jj]],pch=19,col="blue")
+               points(track_centre_point,mat_list_cor[[S_idx,b_idx]][[jj]][track_centre_point],pch=19,col="blue")
 
-         par(new=T)
-         if ( flag_tandem ) {
-            vec_counts_scale <- seq(0,50,10)
-            vec_counts_ylim <- c(0,1.8 * 50)
-         } else {
-            vec_counts_scale <- seq(0,200,50)
-            vec_counts_ylim <- c(0,1.8 * 200)
-         }
-         #plot(1:i_len_trackID,sapply(X=1:i_len_trackID,FUN=function(x) { sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,x] ) ) }),pch=4,ylim=vec_counts_ylim,axes=F,xlab="",ylab="")
-         plot(1:i_len_trackID,mat_list_sample[[S_idx,b_idx]][[jj]],ylim=vec_counts_ylim,axes=F,xlab="",ylab="",pch=4)
-         axis(side=4,at=vec_counts_scale)
-         mtext("Number of temporal samples", side=4, line=2, cex=0.8)
-         if ( jj == 1) {
-            legend(1,250,legend=c("Point closest to buoy","Correlation","Number of temporal samples"),bg="white",pch=c(19,1,4),col=c("blue","black","black"))
-         }
+               par(new=T)
+               if ( flag_tandem ) {
+                  vec_counts_scale <- seq(0,50,10)
+                  vec_counts_ylim <- c(0,1.8 * 50)
+               } else {
+                  vec_counts_scale <- seq(0,200,50)
+                  vec_counts_ylim <- c(0,1.8 * 200)
+               }
+               #plot(1:i_len_trackID,sapply(X=1:i_len_trackID,FUN=function(x) { sum( !is.na( unlist(plot_data[,jj]) ) & !is.na( list_trackID_hs[[jj]][,x] ) ) }),pch=4,ylim=vec_counts_ylim,axes=F,xlab="",ylab="")
+               plot(1:i_len_trackID,mat_list_sample[[S_idx,b_idx]][[jj]],ylim=vec_counts_ylim,axes=F,xlab="",ylab="",pch=4)
+               axis(side=4,at=vec_counts_scale)
+               mtext("Number of temporal samples", side=4, line=2, cex=0.8)
+               if ( jj == 1) {
+                  legend(1,250,legend=c("Point closest to buoy","Correlation","Number of temporal samples"),bg="white",pch=c(19,1,4),col=c("blue","black","black"))
+               }
 # Top title.
-         mtext(paste0(vec_tandem_labs[S_idx]," [",buoy_radius," km] Buoy: ",buoy_list[buoy_idx],", Season: ",lab_season[season_idx]), side=3, line=1, cex=1.5, outer=TRUE)
-      }
+               mtext(paste0(vec_tandem_labs[S_idx]," [",buoy_radius," km] Buoy: ",buoy_list[buoy_idx],", Season: ",lab_season[season_idx]), side=3, line=1, cex=1.5, outer=TRUE)
+            }
 
-      for ( jj in 1:length(vec_unique_trackID) ) {
-         i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
-         title_top <- paste0(vec_tandem_labs[S_idx]," [",buoy_radius," km] Track ID: ",vec_unique_trackID[[jj]])
-         plot(1:i_len_trackID,mat_list_rmse[[S_idx,b_idx]][[jj]],ylim=c(-0.3,0.7),xlab="Bin distance along-track (km)",ylab="RMSD",main="",axes=F,cex.lab=1.2)
-         axis(side=2,at=seq(0.1,0.7,0.1),labels=seq(0.1,0.7,0.1))
-         axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
-         abline(v=vec_stats_xlim,col="grey")
-         abline(v=track_centre_point,col="blue",lwd=1.5)
-         par(new=T)
+            for ( jj in 1:length(vec_unique_trackID) ) {
+               i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
+               title_top <- paste0(vec_tandem_labs[S_idx]," [",buoy_radius," km] Track ID: ",vec_unique_trackID[[jj]])
+               plot(1:i_len_trackID,mat_list_rmse[[S_idx,b_idx]][[jj]],ylim=c(-0.3,0.7),xlab="Bin distance along-track (km)",ylab="RMSD",main="",axes=F,cex.lab=1.2)
+               axis(side=2,at=seq(0.1,0.7,0.1),labels=seq(0.1,0.7,0.1))
+               axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
+               abline(v=vec_stats_xlim,col="grey")
+               abline(v=track_centre_point,col="blue",lwd=1.5)
+               par(new=T)
 # Plot BIAS.
-         plot(1:i_len_trackID,mat_list_bias[[S_idx,b_idx]][[jj]],pch=4,ylim=c(-0.5,3),axes=F,xlab="",ylab="")
-         abline(h=c(0),col="grey")
-         axis(side=4,at=seq(-0.5,1,0.25))
-         mtext("Mean bias", side=4, line=2, cex=0.8)
-         if ( jj == 1) {
-            legend(1,15,legend=c("Point closest to buoy","RMSD","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
-         }
+               plot(1:i_len_trackID,mat_list_bias[[S_idx,b_idx]][[jj]],pch=4,ylim=c(-0.5,3),axes=F,xlab="",ylab="")
+               abline(h=c(0),col="grey")
+               axis(side=4,at=seq(-0.5,1,0.25))
+               mtext("Mean bias", side=4, line=2, cex=0.8)
+               if ( jj == 1) {
+                  legend(1,15,legend=c("Point closest to buoy","RMSD","Number of temporal samples"),pch=c(19,1,4),col=c("blue","black","black"))
+               }
 ## Histogram of collocation time differences.
-#         if ( jj == 1) {
-#            hist(unlist( mat_list_time_diff_J3B )/60,breaks=30,xlim=c(0,30),main=paste("Distribution of collocation\ntime differences. Total:",sum( !is.na( unlist( mat_list_time_diff_J3B ) ) )),xlab="Time difference (minutes)")
-#         }
-      }
+#               if ( jj == 1) {
+#                  hist(unlist( mat_list_time_diff_J3B )/60,breaks=30,xlim=c(0,30),main=paste("Distribution of collocation\ntime differences. Total:",sum( !is.na( unlist( mat_list_time_diff_J3B ) ) )),xlab="Time difference (minutes)")
+#               }
+            }
 
-      dev.off()
-      #system(paste("okular",fig_rmse_file_name,"&> /dev/null &"))
-      system(paste("okular",fig_cor_file_name,"&> /dev/null &"))
-
-      }
+            dev.off()
+            #system(paste("okular",fig_rmse_file_name,"&> /dev/null &"))
+            system(paste("okular",fig_cor_file_name,"&> /dev/null &"))
+         }
 # Closure for buoy loop.
-   }
+      }
 # Closure for season loop.
    }
 #-------------------------------------------------------------------------------------------------#
