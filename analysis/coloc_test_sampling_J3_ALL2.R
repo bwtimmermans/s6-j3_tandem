@@ -20,7 +20,7 @@
 
    flag_plot_ggmap <- TRUE
 # Correlation (COR) or mean bias (BIAS).
-   flag_plot_ggmap_COR <- FALSE
+   flag_plot_ggmap_COR <- TRUE
 
 # Sea state sampling by wave period.
    flag_period_thresh <- FALSE
@@ -39,6 +39,8 @@
       cor_thresh <- 0.98
 # Omit 46246.
 # 46066(1) doesn't work for tandem phase.
+# 46246(3) strong bias everywhere.
+# 46085(4) bias gradient with latitude.
       Bidx_init <- c(1,2,4:9)
       Bidx_init <- 4
    } else {
@@ -53,7 +55,7 @@
    }
 
 # Bin width for along-track sampling (5 km).
-   dist_bin_width <- 5
+   dist_bin_width <- 10
 
    flag_ERA5_BILIN <- FALSE
 
@@ -199,7 +201,7 @@
 #       3 = radius
 
    array_radius_stats <- array(NA,dim=c(7,4,10))
-   vec_buoy_radius <- c(110)
+   vec_buoy_radius <- c(95)
 
    for ( i_buoy_radius in 1:1 ) {
       buoy_radius <- vec_buoy_radius[i_buoy_radius]
@@ -689,9 +691,12 @@
             lm_buoy_dist_lat_neg <- lm(lat ~ dist + I(dist^2) + I(dist^3), data = df_BB[1:tr_min_idx[pp_idx],])
             lm_buoy_dist_lat_pos <- lm(lat ~ dist + I(dist^2) + I(dist^3), data = df_BB[tr_min_idx[pp_idx]:1001,])
 
-            vec_dist_bins_neg <- seq(5*floor(range(vec_track_dist[1:tr_min_idx[pp_idx]])[1] / 5),0,5)
+            #vec_dist_bins_centre <- seq(-floor(149 / dist_bin_width)*dist_bin_width,floor(149 / dist_bin_width)*dist_bin_width,dist_bin_width)
+            #vec_dist_bins_neg <- seq(5*floor(range(vec_track_dist[1:tr_min_idx[pp_idx]])[1] / 5),0,5)
+            vec_dist_bins_neg <- seq(dist_bin_width*floor(range(vec_track_dist[1:tr_min_idx[pp_idx]])[1] / dist_bin_width),0,dist_bin_width)
             vec_pred_tr_lat_neg <- predict.lm(lm_buoy_dist_lat_neg,newdata=data.frame(dist=vec_dist_bins_neg))
-            vec_dist_bins_pos <- seq(5,5*floor(range(vec_track_dist[tr_min_idx[pp_idx]:1001])[2] / 5),5)
+            #vec_dist_bins_pos <- seq(5,5*floor(range(vec_track_dist[tr_min_idx[pp_idx]:1001])[2] / 5),dist_bin_width)
+            vec_dist_bins_pos <- seq(dist_bin_width,dist_bin_width*floor(range(vec_track_dist[tr_min_idx[pp_idx]:1001])[2] / dist_bin_width),dist_bin_width)
             vec_pred_tr_lat_pos <- predict.lm(lm_buoy_dist_lat_pos,newdata=data.frame(dist=vec_dist_bins_pos))
 # Longitude.
             #lm_buoy_dist_lon_neg <- lm(lon ~ dist + I(dist^0.5) + I(dist^0.33), data = df_BB[1:tr_min_idx[pp_idx],])
@@ -998,12 +1003,17 @@
       list_season_idx[[2]] <- as.vector(sapply(X=1:5,FUN=function(x) { c(4,5,6,7,8,9)+(x-1)*12 }))
    }
 
-# Loop over buoys.
-   for (season_idx in 2:2) {
-
 # Loop over (active) buoys.
-      for (b_idx in (1:length(Bidx))[vec_B_active]) {
-         for (S_idx in Sidx) {
+   for (b_idx in (1:length(Bidx))[vec_B_active]) {
+# Temporary for seasonal bias info.
+      list_cor_season <- list()
+      list_cor_95_season <- list()
+      list_rmse_season <- list()
+      list_bias_season <- list()
+# Loop over season.
+      vec_season <- 1:3
+      for (season_idx in vec_season) {
+            for (S_idx in Sidx) {
 # Select target for correlation (buoy, ERA, ERA5_bilin).
             situ_data <- as.matrix(mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]][list_season_idx[[season_idx]],])
             #situ_data <- mat_list_ERA5_hs_coloc_AD
@@ -1067,18 +1077,22 @@
                      #list_vec_cor[[jj]][ii] <- cor( mat_pair_temp[,1], mat_pair_temp[,2], use="pairwise.complete.obs" )
 # RMSD.
                      list_vec_rmse[[jj]][ii] <- sqrt( mean( (unlist(situ_data[,jj])-list_trackID_hs[[jj]][,ii])^2,na.rm=T ) )
-# Bias.
+# Bias (sat - buoy).
                      mat_stat_data <- cbind(unlist(situ_data[,jj]),list_trackID_hs[[jj]][,ii])
                      Lvec_bias <- !apply(X=mat_stat_data,MAR=1,function(x) { any(is.na(x)) })
-                     list_vec_bias[[jj]][ii] <- mean(mat_stat_data[Lvec_bias,1])-mean(mat_stat_data[Lvec_bias,2])
+                     list_vec_bias[[jj]][ii] <- mean(mat_stat_data[Lvec_bias,2])-mean(mat_stat_data[Lvec_bias,1])
                   }
                }
                list_Lvec_cor_95[[jj]] <- list_vec_cor[[jj]] > cor_thresh
             }
-            mat_list_cor[[S_idx,b_idx]] <- list_vec_cor
-            mat_list_cor_95[[S_idx,b_idx]] <- list_Lvec_cor_95
-            mat_list_rmse[[S_idx,b_idx]] <- list_vec_rmse
-            mat_list_bias[[S_idx,b_idx]] <- list_vec_bias
+            #mat_list_cor[[S_idx,b_idx]] <- list_vec_cor
+            #mat_list_cor_95[[S_idx,b_idx]] <- list_Lvec_cor_95
+            #mat_list_rmse[[S_idx,b_idx]] <- list_vec_rmse
+            #mat_list_bias[[S_idx,b_idx]] <- list_vec_bias
+            list_cor_season[[season_idx]] <- list_vec_cor
+            list_cor_95_season[[season_idx]] <- list_Lvec_cor_95
+            list_rmse_season[[season_idx]] <- list_vec_rmse
+            list_bias_season[[season_idx]] <- list_vec_bias
             mat_list_outlier[[S_idx,b_idx]] <- list_outlier
             mat_list_sample[[S_idx,b_idx]] <- list_vec_sample
          }
@@ -1116,15 +1130,14 @@
                title_top <- paste0("Track ID: ",vec_unique_trackID[[jj]])
                #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz ground distance (km)",ylab="Correlation",main=paste("Track ID:",vec_unique_trackID[[jj]],"\nBuoy:",buoy_list[buoy_idx]),axes=F)
                #plot(1:i_len_trackID,list_vec_cor[[jj]],ylim=c(0.5,1.0),xlab="1 Hz surface distance (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
-               plot(1:i_len_trackID,mat_list_cor[[S_idx,b_idx]][[jj]],ylim=c(0.5,1.0),xlab="Bin distance along-track (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
+               plot(1:i_len_trackID,list_cor_season[[season_idx]][[jj]],ylim=c(0.5,1.0),xlab="Bin distance along-track (km)",ylab="Correlation",main=title_top,axes=F,cex.lab=1.2)
                axis(side=2,at=seq(0.5,1.0,0.1),labels=seq(0.5,1.0,0.1))
                #axis(side=1,at=seq(5,55,5),labels=format(25*seq(-5,5,1),digits=2),las=2)
                axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
                abline(h=c(0.95,1.0),col="grey")
                abline(v=vec_stats_xlim,col="grey")
                abline(v=track_centre_point,col="blue",lwd=1.5)
-               #points((1:i_len_trackID)[vec_mode_min[jj]],mat_list_cor[[S_idx,b_idx]][[jj]][vec_mode_min[jj]],pch=19,col="blue")
-               points(track_centre_point,mat_list_cor[[S_idx,b_idx]][[jj]][track_centre_point],pch=19,col="blue")
+               points(track_centre_point,list_cor_season[[season_idx]][[jj]][track_centre_point],pch=19,col="blue")
 
                par(new=T)
                if ( flag_tandem ) {
@@ -1148,14 +1161,15 @@
             for ( jj in 1:length(vec_unique_trackID) ) {
                i_len_trackID <- dim(list_trackID_hs[[jj]])[2]
                title_top <- paste0(vec_tandem_labs[S_idx]," [",buoy_radius," km] Track ID: ",vec_unique_trackID[[jj]])
-               plot(1:i_len_trackID,mat_list_rmse[[S_idx,b_idx]][[jj]],ylim=c(-0.3,0.7),xlab="Bin distance along-track (km)",ylab="RMSD",main="",axes=F,cex.lab=1.2)
+               plot(1:i_len_trackID,list_rmse_season[[season_idx]][[jj]],ylim=c(-0.3,0.7),xlab="Bin distance along-track (km)",ylab="RMSD",main="",axes=F,cex.lab=1.2)
                axis(side=2,at=seq(0.1,0.7,0.1),labels=seq(0.1,0.7,0.1))
                axis(side=1,at=vec_stats_xlim,labels=format(vec_dist_bins_centre[vec_stats_xlim],digits=2),las=2)
                abline(v=vec_stats_xlim,col="grey")
                abline(v=track_centre_point,col="blue",lwd=1.5)
                par(new=T)
 # Plot BIAS.
-               plot(1:i_len_trackID,mat_list_bias[[S_idx,b_idx]][[jj]],pch=4,ylim=c(-0.5,3),axes=F,xlab="",ylab="")
+               #plot(1:i_len_trackID,mat_list_bias[[S_idx,b_idx]][[jj]],pch=4,ylim=c(-0.5,3),axes=F,xlab="",ylab="")
+               plot(1:i_len_trackID,list_bias_season[[season_idx]][[jj]],pch=4,ylim=c(-0.5,3),axes=F,xlab="",ylab="")
                abline(h=c(0),col="grey")
                axis(side=4,at=seq(-0.5,1,0.25))
                mtext("Mean bias", side=4, line=2, cex=0.8)
@@ -1172,9 +1186,13 @@
             #system(paste("okular",fig_rmse_file_name,"&> /dev/null &"))
             system(paste("okular",fig_cor_file_name,"&> /dev/null &"))
          }
-# Closure for buoy loop.
-      }
 # Closure for season loop.
+      }
+      mat_list_cor[[S_idx,b_idx]] <- list_cor_season
+      mat_list_cor_95[[S_idx,b_idx]] <- list_cor_95_season
+      mat_list_rmse[[S_idx,b_idx]] <- list_rmse_season
+      mat_list_bias[[S_idx,b_idx]] <- list_bias_season
+# Closure for buoy loop.
    }
 #-------------------------------------------------------------------------------------------------#
 # Multi-buoy plotting.
@@ -1264,8 +1282,8 @@
                   #list_trackID_hs_med_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,mat_outlier_temp[x,]])) })
                   list_trackID_hs_med_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,])) })
 
-                  list_trackID_hs_med_adapt[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { median(list_trackID_hs[[jj]][x,list_Lvec_cor_95[[jj]]],na.rm=T) })
-                  list_trackID_hs_med_adapt_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,list_Lvec_cor_95[[jj]]])) })
+                  list_trackID_hs_med_adapt[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { median(list_trackID_hs[[jj]][x,list_Lvec_cor_95[[3]][[jj]]],na.rm=T) })
+                  list_trackID_hs_med_adapt_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,list_Lvec_cor_95[[3]][[jj]]])) })
                   #mat_list_trackID_hs_med_rand[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,runif(i_len_trackID) > 0.1],na.rm=T) })
 
                   list_trackID_hs_min1[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-1),TRUE,rep(FALSE,(length(vec_dist_bins)/2)-1))] })
@@ -1294,7 +1312,7 @@
       }
    }
 
-   if ( sum(unlist(list_Lvec_cor_95),na.rm=T) == 0 ) {
+   if ( sum(unlist(list_Lvec_cor_95[[3]]),na.rm=T) == 0 ) {
       print(paste(" NO DATA FOR ADAPTIVE!"))
    }
    print(paste(" SQRT ERROR VAR [MED - ADAPT] **",sqrt( var( unlist(list_trackID_hs_med)-unlist(list_trackID_hs_med_adapt), na.rm=T ) ) ) )
@@ -1554,11 +1572,16 @@
          circleDF$lat <- unlist(lapply(centers$latitude, function(x) x + radiusLat * sin(angle)))
          return(circleDF)
       }
+# Circle for sampling radius, 25, 50 km.
       df_circles <- NULL
+      df_circles_25 <- NULL
+      df_circles_50 <- NULL
       for (b_idx in 1:length(Bidx)) {
          df_buoy_test <- data.frame(buoy_ID=buoy_list[b_idx_list[Bidx[b_idx]]],df_buoy_data[b_idx_list[Bidx[b_idx]],c(1,2)])
          colnames(df_buoy_test) <- c("buoy_ID","latitude","longitude")
          df_circles <- rbind(df_circles,func_make_circles(df_buoy_test, buoy_radius))
+         df_circles_25 <- rbind(df_circles_25,func_make_circles(df_buoy_test, 25))
+         df_circles_50 <- rbind(df_circles_50,func_make_circles(df_buoy_test, 50))
       }
 
 #-------------------------------------------------------------------------------------------------#
@@ -1573,24 +1596,27 @@
             df_plot_J3 <- rbind(df_plot_J3,data.frame(pred_lon=list_B_list_tr_lm_seq[[b_idx]][[kk]][,1]-360,pred_lat=list_B_list_tr_lm_seq[[b_idx]][[kk]][,2],tr_id=paste0(buoy_list[b_idx_list[b_idx]],"_",kk)))
          }
       }
-# Data frame for sat bin correlations.
+# Data frame for sat bin statistics.
       df_plot_cor <- NULL
       for (b_idx in 1:length(Bidx)) {
          for (kk in 1:length( list_B_list_tr_lm_seq[[b_idx]] )) {
-            plot_angle <- (180/pi)*atan( (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,2] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,2]) / (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,1] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,1]) )
-            if ( !all( is.na( mat_list_cor[[S_idx,b_idx]][[kk]] ) ) ) {
-               if ( flag_plot_ggmap_COR ) {
+            plot_angle <- 1.5*(180/pi)*atan( (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,2] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,2]) / (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,1] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,1]) )
+
+            for (season_idx in vec_season) {
+               if ( !all( is.na( mat_list_cor[[S_idx,b_idx]][[season_idx]][[kk]] ) ) ) {
+                  if ( flag_plot_ggmap_COR ) {
 # Correlation plot.
-                  df_DD <- data.frame(vec_dist_bins_centre,cor=mat_list_cor[[S_idx,b_idx]][[kk]],lon=NA,lat=NA,plot_angle=plot_angle)
+                     df_DD <- data.frame(vec_dist_bins_centre,cor=mat_list_cor[[S_idx,b_idx]][[season_idx]][[kk]],lon=NA,lat=NA,season=lab_season[season_idx],plot_angle=plot_angle)
+                  } else {
+# Bias plot. Loop over seasons.
+                     df_DD <- data.frame(vec_dist_bins_centre,cor=mat_list_bias[[S_idx,b_idx]][[season_idx]][[kk]],lon=NA,lat=NA,season=lab_season[season_idx],plot_angle=plot_angle)
+                  }
+                  temp_idx <- which( df_DD[,1] == mat_list_bin_coords[[S_idx,b_idx]][[kk]][1,1] )
+                  df_DD[temp_idx:(temp_idx-1+length(mat_list_bin_coords[[S_idx,b_idx]][[kk]][,3])),3:4] <- mat_list_bin_coords[[S_idx,b_idx]][[kk]][,2:3]
+                  df_plot_cor <- rbind( df_plot_cor,cbind(df_DD[!is.na(df_DD$cor),],tr_id=paste0(buoy_list[b_idx_list[b_idx]],"_",kk)) )
                } else {
-# Bias plot.
-                  df_DD <- data.frame(vec_dist_bins_centre,cor=mat_list_bias[[S_idx,b_idx]][[kk]],lon=NA,lat=NA,plot_angle=plot_angle)
+                  print(paste("Buoy ID:",buoy_idx,"[",buoy_list[buoy_idx],"] No correlation data for track ID:",kk))
                }
-               temp_idx <- which( df_DD[,1] == mat_list_bin_coords[[S_idx,b_idx]][[kk]][1,1] )
-               df_DD[temp_idx:(temp_idx-1+length(mat_list_bin_coords[[S_idx,b_idx]][[kk]][,3])),3:4] <- mat_list_bin_coords[[S_idx,b_idx]][[kk]][,2:3]
-               df_plot_cor <- rbind( df_plot_cor,cbind(df_DD[!is.na(df_DD$cor),],tr_id=paste0(buoy_list[b_idx_list[b_idx]],"_",kk)) )
-            } else {
-               print(paste("Buoy ID:",buoy_idx,"[",buoy_list[buoy_idx],"] No correlation data for track ID:",kk))
             }
          }
       }
@@ -1607,14 +1633,14 @@
          df_plot_cor$cor[df_plot_cor$cor < 0.85] <- 0.85
          ggplot_colour_scale <- scale_colour_viridis_c(option = "plasma")
          legend_title <- "Cor"
-         fig_file_name <- paste("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_COR.png",sep="")
-         system(paste("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi",sep=""))
+         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_",lab_season[season_idx],"COR.png")
+         system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
       } else {
 # Colour scale.
-         ggplot_colour_scale <- scale_colour_gradient2()
+         ggplot_colour_scale <- scale_colour_gradient2(low = "blue", mid="white", high = "red")
          legend_title <- "Bias (m)"
-         fig_file_name <- paste("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_BIAS.png",sep="")
-         system(paste("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi",sep=""))
+         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_season,collapse=""),"_BIAS.png")
+         system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
       }
 #-------------------------------------------------------------------------------------------------#
 # Load ggmap.
@@ -1650,37 +1676,48 @@
          #geom_point(aes(x=df_buoy_data$buoy_lon[buoy_idx], y=df_buoy_data$buoy_lat[buoy_idx], col="yellow"), colour="black", fill="yellow", size=20, shape=23, stroke=5) +
          #geom_label(aes(x=df_buoy_data$buoy_lon[buoy_idx], y=df_buoy_data$buoy_lat[buoy_idx], label=paste(buoy_list[buoy_idx])), label.padding = unit(0.30, "lines"), size = 20, nudge_x = 1.4, nudge_y = 0.7) +
          geom_point(data=df_buoy_data[b_idx_list[Bidx],],aes(x=buoy_lon, y=buoy_lat), colour="black", fill="yellow", shape=23, size=20, stroke=5) +
-         #geom_point(aes(x=df_buoy_data$buoy_lon[b_idx_list[Bidx[1]]], y=df_buoy_data$buoy_lat[b_idx_list[Bidx[1]]]), colour=rep("black",2), fill=rep("yellow",2), size=rep(15,2), shape=rep(23,2), stroke=rep(5,2)) +
-         #geom_point(aes(x=df_buoy_data$buoy_lon[b_idx_list[Bidx[2]]], y=df_buoy_data$buoy_lat[b_idx_list[Bidx[2]]]), colour="black", fill="yellow", size=15, shape=23, stroke=5) +
-         #geom_label(aes(x=df_buoy_data$buoy_lon[b_idx_list[Bidx]], y=df_buoy_data$buoy_lat[b_idx_list[Bidx]], label=paste(buoy_list[buoy_idx])), label.padding = unit(0.30, "lines"), size = 20, nudge_x = 1.4, nudge_y = 0.7) +
 # Colour scale.
          ggplot_colour_scale +
 # Sampling radius.
          geom_polygon(data = df_circles, aes(lon, lat, group = buoy_ID), col="black", linewidth=3, alpha = 0) +
+         geom_polygon(data = df_circles_25, aes(lon, lat, group = buoy_ID), col="grey", linewidth=2, alpha = 0) +
+         geom_polygon(data = df_circles_50, aes(lon, lat, group = buoy_ID), col="grey", linewidth=2, alpha = 0) +
 # Satellite tracks.
          geom_point(data=df_plot_J3, aes(x=pred_lon, y=pred_lat), col="white", size=1, shape=0) +
 # Bin correlation points.
          #geom_point(data=df_plot_cor, aes(x=lon, y=lat, col=cor), fill="black", shape=1, size=10, stroke=5) +
-         geom_text(data=df_plot_cor, label = "\u25AE", size=10, aes(x=lon, y=lat, col=cor, angle=plot_angle)) +
+         geom_text(data=df_plot_cor, label = "\u25AE", size=18, aes(x=lon, y=lat, col=cor, angle=plot_angle)) +
+         facet_wrap(~season, ncol=1) +
+# Buoy label.
+         geom_label(aes(x=df_buoy_data$buoy_lon[b_idx_list[Bidx]], y=df_buoy_data$buoy_lat[b_idx_list[Bidx]], label=paste(buoy_list[buoy_idx])), label.padding = unit(0.30, "lines"), size = 20, nudge_x = 1.5, nudge_y = 0.7) +
 # ERA5 grid cells.
          #geom_point(data = df_plot_ERA5, aes(x=ERA5_lon, y=ERA5_lat, col="4) ERA5 (0.5 deg)"), size=18, shape=10, stroke=3) +
          #geom_segment(data = df_plot_ERA5_box1, aes(x=lon_1, y=lat_1, xend=lon_2, yend=lat_2, col="5) ERA5 bilinear"), linewidth=2) +
+# Title.
+	 ggtitle(paste0(buoy_list[buoy_idx],"; ",buoy_radius," km sampling; ",dist_bin_width," km bin size")) +
 # Theme stuff.
          theme(panel.background = element_rect(fill = "gray30"),
                panel.grid.major = element_line(linewidth = 2),
+               plot.title = element_text(size = 70,hjust = 0.5),
                axis.title.x = element_blank(),
                axis.title.y = element_blank(),
                axis.text.x = element_text(size = 40),
                axis.text.y = element_text(size = 40),
                legend.text = element_text(size = 40,margin = margin(b = 10, t = 10, unit = "pt")),
                #legend.title = element_blank() ) + labs(fill = "50km") +
-               legend.title = element_text(size = 50) ) + labs(colour = legend_title) +
+               legend.title = element_text(size = 50),
+
+               strip.text = element_text(size = 60, margin = margin(25,0,25,0)),
+               strip.background = element_rect(fill = "white"),
+               panel.spacing.x = unit(1, "lines"),
+               panel.spacing.y = unit(2, "lines") ) +
+         labs(colour = legend_title) +
          guides(colour=guide_colourbar(barwidth = 5, barheight = 20))
          #guides(color=guide_legend(override.aes=list(shape=c(1),linetype=c(0),size=c(5))))
 #         guides(fill=guide_legend(reverse=TRUE)) +
 
       #mat_lay <- cbind(c(1,1,1),matrix(rep(2,9),ncol=3))
-      png(fig_file_name,width=2000,height=1600)
+      png(fig_file_name,width=1500,height=1400*length(vec_season))
       #pdf(fig_file_name,width = 8, height = 9)
       #grid.arrange(p2,p1,layout_matrix=mat_lay)
       plot(p2)
