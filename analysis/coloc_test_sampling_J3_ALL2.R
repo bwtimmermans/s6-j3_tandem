@@ -20,7 +20,7 @@
 
    flag_plot_ggmap <- TRUE
 # Correlation (COR) or mean bias (BIAS).
-   flag_plot_ggmap_COR <- TRUE
+   flag_plot_ggmap_COR <- FALSE
 
 # Sea state sampling by wave period.
    flag_period_thresh <- FALSE
@@ -41,8 +41,10 @@
 # 46066(1) doesn't work for tandem phase.
 # 46246(3) strong bias everywhere.
 # 46085(4) bias gradient with latitude.
+# 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
-      Bidx_init <- 4
+      Bidx_init <- 1:9
+      Bidx_init <- 5
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -201,7 +203,7 @@
 #       3 = radius
 
    array_radius_stats <- array(NA,dim=c(7,4,10))
-   vec_buoy_radius <- c(95)
+   vec_buoy_radius <- c(104)
 
    for ( i_buoy_radius in 1:1 ) {
       buoy_radius <- vec_buoy_radius[i_buoy_radius]
@@ -1517,6 +1519,9 @@
       pl_mgp <- c(9,3,0)
       pl_cex <- 4; pl_cex_main <- 6; pl_cex_lab <- 6; pl_cex_axis <- 5; pl_cex_leg <- 5
       cex_mtext <- 4
+      vec_track_lines <- c(-33,-38,-43,-48)
+      vec_buoy_lab_100 <- c(46066,46078,46246,46085,46001,46002,46005,46006,46059)
+      Lvec_buoy_plot_idx <- sapply(1:length(vec_buoy_lab_100),function(x) any(vec_buoy_lab == vec_buoy_lab_100[x]))
 
       plot_title <- paste0(fig_lab_region," ",vec_tandem_labs[S_idx],"[M",m_limit,"] ",buoy_radius,"km Bootstrap sampling distribution for mean bias")
 
@@ -1526,23 +1531,31 @@
       png(fig_buoy_mean_bootstrap_file_name, width = 3000, height = 3000)
       par(mfrow=pl_mfrow,oma=pl_oma,mar=pl_mar,mgp=pl_mgp)
 # Plotting.
-      for ( AA in 1:length(vec_buoy_lab) ) {
-         if ( AA == 1 ) {
-            hist(mat_BBB[,AA],xlim=c(-0.15,0.15),ylim=c(0,2000),xlab="Mean bias (m)",main=paste(buoy_list[b_idx_list[Bidx]][AA]),cex=pl_cex, cex.main=pl_cex_main, cex.lab=pl_cex_lab, cex.axis=pl_cex_axis)
-            abline(v=BB[AA],col="blue",lwd=5)
-# Stats.
-            mtext(side=3, line=-3, adj=0.06, cex=cex_mtext, outer=FALSE, text=paste("N:",sum(df_reg$buoy_lab == vec_buoy_lab[AA])))
-            mtext(side=3, line=-8, adj=0.09, cex=cex_mtext, outer=FALSE, text=paste("2 SD:",format(round(sqrt(var(mat_BBB[,AA])),3),nsmall=2),"(m)"))
-            mtext(side=3, line=-13, adj=0.1, cex=cex_mtext, outer=FALSE, text=paste("P[X<=Obs]:",format(round(ecdf(mat_BBB[,AA])( BB[AA] ),3),nsmall=3)))
+      #for ( AA in 1:length(vec_buoy_lab) ) {
+      AA <- 1
+      for ( plot_idx in 1:9 ) {
+         if ( Lvec_buoy_plot_idx[plot_idx] ) {
+            if ( AA == 1 ) {
+               hist(mat_BBB[,AA],xlim=c(-0.15,0.15),ylim=c(0,2000),xlab="Mean bias (m)",main=paste(buoy_list[b_idx_list[Bidx]][AA]),cex=pl_cex, cex.main=pl_cex_main, cex.lab=pl_cex_lab, cex.axis=pl_cex_axis)
 # Legend.
-            legend(x=-0.15,y=1600,legend="Obs mean bias",col="blue",cex=5,lwd=5)
-         } else {
-            hist(mat_BBB[,AA],xlim=c(-0.15,0.15),ylim=c(0,2000),xlab="",ylab="",main=paste(buoy_list[b_idx_list[Bidx]][AA]),cex=pl_cex, cex.main=pl_cex_main, cex.lab=pl_cex_lab, cex.axis=pl_cex_axis)
+               legend(x=-0.02,y=1650,legend="Obs mean bias",col="blue",cex=5,lwd=5)
+	    } else {
+               hist(mat_BBB[,AA],xlim=c(-0.15,0.15),ylim=c(0,2000),xlab="",ylab="",main=paste(buoy_list[b_idx_list[Bidx]][AA]),cex=pl_cex, cex.main=pl_cex_main, cex.lab=pl_cex_lab, cex.axis=pl_cex_axis)
+	    }
             abline(v=BB[AA],col="blue",lwd=5)
 # Stats.
             mtext(side=3, line=-3, adj=0.06, cex=cex_mtext, outer=FALSE, text=paste("N:",sum(df_reg$buoy_lab == vec_buoy_lab[AA])))
             mtext(side=3, line=-8, adj=0.09, cex=cex_mtext, outer=FALSE, text=paste("2 SD:",format(round(sqrt(var(mat_BBB[,AA])),3),nsmall=2),"(m)"))
             mtext(side=3, line=-13, adj=0.1, cex=cex_mtext, outer=FALSE, text=paste("P[X<=Obs]:",format(round(ecdf(mat_BBB[,AA])( BB[AA] ),3),nsmall=3)))
+            mtext(side=3, line=-28, adj=0.0, cex=cex_mtext, outer=FALSE, text=paste("Local tracks:"))
+# Track info.
+            for ( track_dir_idx in 1:length(unique( df_reg$track_dist[df_reg$buoy_lab == vec_buoy_lab[AA]] ))) {
+               mtext(side=3, line=vec_track_lines[track_dir_idx], adj=0.0, cex=cex_mtext, outer=FALSE, text=paste0( unique( df_reg$track_dir[df_reg$buoy_lab == vec_buoy_lab[AA]] )[track_dir_idx],": ", format( round( unique( df_reg$track_dist[df_reg$buoy_lab == vec_buoy_lab[AA]] )[track_dir_idx] ) )," km" ))
+            }
+            AA <- AA + 1
+         } else {
+# Plot a blank panel.	 
+            plot(NULL,xlim=c(0,1),ylim=c(0,1),xlab="",ylab="",axes=FALSE)
          }
       }
       mtext(side=3, line=5, adj=0.5, cex=6, outer=TRUE, text=plot_title)
@@ -1550,6 +1563,7 @@
       dev.off()
       system(paste("okular",fig_buoy_mean_bootstrap_file_name,"&> /dev/null &"))
    }
+   #unique( df_reg$track_dist[df_reg$buoy_lab == 46066] )
 
 #=================================================================================================#
 # ggplot.
@@ -1633,7 +1647,7 @@
          df_plot_cor$cor[df_plot_cor$cor < 0.85] <- 0.85
          ggplot_colour_scale <- scale_colour_viridis_c(option = "plasma")
          legend_title <- "Cor"
-         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_",lab_season[season_idx],"COR.png")
+         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_season,collapse=""),"_COR.png")
          system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
       } else {
 # Colour scale.
