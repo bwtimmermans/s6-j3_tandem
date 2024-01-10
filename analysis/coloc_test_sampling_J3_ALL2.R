@@ -13,12 +13,13 @@
    flag_plot_track_stats <- FALSE
    flag_plot_multi_cor <- FALSE
 
-   flag_scatter_plot <- FALSE
+   flag_scatter_plot <- TRUE
    flag_single_panel <- FALSE
+   flag_radius_plot <- TRUE
 
    flag_buoy_bias_hist <- FALSE
 
-   flag_plot_ggmap <- TRUE
+   flag_plot_ggmap <- FALSE
 # Correlation (COR) or mean bias (BIAS).
    flag_plot_ggmap_COR <- FALSE
 
@@ -44,7 +45,6 @@
 # 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
       Bidx_init <- 1:9
-      Bidx_init <- 5
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -74,7 +74,7 @@
    #Bidx_init <- c(1:6,15:18,21:29,31,32,34)
 
    Sidx <- 1
-   flag_tandem <- FALSE
+   flag_tandem <- TRUE
    if ( flag_tandem ) {
       m_limit <- 13
    } else {
@@ -203,9 +203,10 @@
 #       3 = radius
 
    array_radius_stats <- array(NA,dim=c(7,4,10))
-   vec_buoy_radius <- c(104)
+   list_df_reg_radius <- list()
+   vec_buoy_radius <- c(100,75,60,50,45,40,35,30,25)
 
-   for ( i_buoy_radius in 1:1 ) {
+   for ( i_buoy_radius in 1:length(vec_buoy_radius) ) {
       buoy_radius <- vec_buoy_radius[i_buoy_radius]
 #=================================================================================================#
 # Define "master" dataset.
@@ -218,7 +219,7 @@
 # Find distance from buoy for all points.
       vec_1Hz_dist <- apply(X=cbind(mat_list_buoy_data1[[1]][[2]],mat_list_buoy_data1[[1]][[3]]-360),MAR=1,FUN=func_buoy_dist,B_idx=buoy_idx)
 # Check for valid data to sample.
-      if ( sum(vec_1Hz_dist < buoy_radius) < 1 ) {
+      if ( sum(vec_1Hz_dist < buoy_radius) < 10 ) {
          Bidx_remove <- c(Bidx_remove,b_idx)
          print(paste("Buoy ID:",buoy_idx,"[",buoy_list[buoy_idx],"] No sampling data. Excluded."))
       }
@@ -229,6 +230,9 @@
    } else {
       print(paste("Bidx list:",paste(Bidx_init,collapse=" ")))
       Bidx <- Bidx_init
+   }
+   if ( i_buoy_radius == 1 ) {
+      Bidx_max <- Bidx
    }
 
 #=================================================================================================#
@@ -1329,20 +1333,20 @@
 # Correlation and regression.
    #df_reg <- data.frame(buoy_hs=unlist(mat_list_buoy_hs_coloc_AD[1,][,1]),sat_hs=unlist(mat_list_trackID_hs_med[[1,1]][[1]]))
    df_reg <- data.frame(
-                        buoy_hs=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]) })),
-                        sat_hs=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med[[S_idx,x]]) })),
-                        sat_hs_adapt=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt[[S_idx,x]]) })),
-                        sat_hs_min1=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min1[[S_idx,x]]) })),
-                        sat_hs_min3=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3[[S_idx,x]]) })),
-                        sat_1Hz_count=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_1Hz_count[[S_idx,x]]) })),
-                        sat_adapt_1Hz_count=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt_1Hz_count[[S_idx,x]]) })),
-                        sat_min3_1Hz_count=unlist(sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3_1Hz_count[[S_idx,x]]) })),
-                        buoy_lab=unlist(sapply(X=1:length(Bidx),FUN=function(x) { rep(buoy_list[b_idx_list[Bidx[x]]],length(unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]))) })),
-                        track_dist=unlist( sapply( X=1:length(Bidx),FUN=function(x) {
-							 sapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
+                        buoy_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]) })),
+                        sat_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med[[S_idx,x]]) })),
+                        sat_hs_adapt=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt[[S_idx,x]]) })),
+                        sat_hs_min1=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min1[[S_idx,x]]) })),
+                        sat_hs_min3=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3[[S_idx,x]]) })),
+                        sat_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_1Hz_count[[S_idx,x]]) })),
+                        sat_adapt_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt_1Hz_count[[S_idx,x]]) })),
+                        sat_min3_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3_1Hz_count[[S_idx,x]]) })),
+                        buoy_lab=unlist(lapply(X=1:length(Bidx),FUN=function(x) { rep(buoy_list[b_idx_list[Bidx[x]]],length(unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]))) })),
+                        track_dist=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
+							 lapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
 								       	rep(mat_list_tr_min_lon_lat[[S_idx,x]][y,3], length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]][[y]])) } ) } ) ),
-                        track_dir=unlist( sapply( X=1:length(Bidx),FUN=function(x) {
-							 sapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
+                        track_dir=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
+							 lapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
 								       	rep(rownames(mat_list_tr_min_lon_lat[[S_idx,x]])[y], length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]][[y]])) } ) } ) ) )
 # Remove low values.
    df_reg$buoy_hs[df_reg$buoy_hs < 0.25] <- NA
@@ -1350,6 +1354,9 @@
    df_reg$sat_hs_adapt[df_reg$sat_hs_adapt < 0.25] <- NA
    df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.75] <- NA
    df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.75] <- NA
+
+# Save df_reg into a master list.
+   list_df_reg_radius[[i_buoy_radius]] <- df_reg
 
 # 1 Hz counts.
    vec_1Hz_count <- c( sum(df_reg$sat_1Hz_count[!is.na(df_reg$buoy_hs)]),
@@ -1426,6 +1433,7 @@
          plot_idx <- vec_plot_idx[p_idx]
 # Specify sat data.
          vec_sat <- df_reg[,plot_idx+1]
+# Get paired data.
          vec_sat_paired <- vec_sat[!is.na(df_reg$buoy_hs) & !is.na(vec_sat)]
          vec_buoy_paired <- df_reg$buoy_hs[!is.na(df_reg$buoy_hs) & !is.na(vec_sat)]
 # Regression.
@@ -1482,10 +1490,81 @@
    }
 
 #=================================================================================================#
-# Plots.
-# X11(); plot(c(vec_buoy_radius),array_radius_stats[1,1,1:length(vec_buoy_radius)],ylim=c(0,3),xlab="Sampling radius (km)",ylab="Mean bias")
-# X11(); plot(c(vec_buoy_radius),array_radius_stats[6,1,1:length(vec_buoy_radius)],ylim=c(0,200),xlab="Sampling radius (km)",ylab="N")
-# X11(); plot(c(vec_buoy_radius),array_radius_stats[7,1,1:length(vec_buoy_radius)],ylim=c(0,3000),xlab="Sampling radius (km)",ylab="N 1 Hz")
+   if ( flag_radius_plot & (i_buoy_radius == length(vec_buoy_radius) ) ) {
+# Plotting statistics as a funtion of sampling radius.
+# Generate mean bias for each buoy (background lines).
+      mat_buoy_bias_rad <- matrix(nrow=length(Bidx_max)+1,ncol=length(vec_buoy_radius))
+      for ( i_b_rad in 1:length(vec_buoy_radius) ) {
+         vec_sat_rad <- list_df_reg_radius[[i_b_rad]]$sat_hs
+         vec_buoy_rad <- list_df_reg_radius[[i_b_rad]]$buoy_hs
+         Lvec_paired_rad <- !is.na(vec_buoy_rad) & !is.na(vec_sat_rad)
+# Total mean bias (46246 removed).
+         Lvec_pair_46246 <- list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad] != 46246
+         #Lvec_pair_46246 <- rep(TRUE,length(list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad]))
+         mat_buoy_bias_rad[length(Bidx_max)+1,i_b_rad] <- mean( (vec_sat_rad[Lvec_paired_rad] - vec_buoy_rad[Lvec_paired_rad])[Lvec_pair_46246] )
+# Mean bias conditional on buoy.
+         for ( b_idx in 1:length(Bidx_max) ) {
+            if ( sum( list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad] == buoy_list[b_idx_list[Bidx_max[b_idx]]] ) > 0 ) {
+               mat_buoy_bias_rad[b_idx,i_b_rad] <- mean( (vec_sat_rad[Lvec_paired_rad] - vec_buoy_rad[Lvec_paired_rad])[ list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad] == buoy_list[b_idx_list[Bidx_max[b_idx]]] ] )
+            }
+         }
+      }
+      colnames(mat_buoy_bias_rad) <- vec_buoy_radius
+      rownames(mat_buoy_bias_rad) <- c(buoy_list[b_idx_list[Bidx_max]],"total")
+
+# Plotting parameters.
+      pl_mfrow <- c(1,1)
+      pl_oma <- c(2,2,2,2)
+      pl_mar <- c(12,14,8,12)
+      pl_mgp <- c(9,3,0)
+      pl_cex <- 4; pl_cex_main <- 6; pl_cex_lab <- 6; pl_cex_axis <- 5; pl_cex_leg <- 5
+      #cex_mtext <- 4
+
+      plot_title <- paste0(fig_lab_region," ",vec_tandem_labs[S_idx],"[M",m_limit,"] Mean bias with sampling radius")
+
+      fig_radius_stats_file_name <- paste0("./figures/buoy_mean_bootstrap/meanbias_radius_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],".png")
+
+# Open file.
+      png(fig_radius_stats_file_name, width = 2400, height = 2400)
+      par(mfrow=pl_mfrow,oma=pl_oma,mar=pl_mar,mgp=pl_mgp)
+      #X11()
+# Create the plot.
+      plot(NULL,xlim=c(20,100),ylim=c(0,ceiling( max(array_radius_stats[7,1,],na.rm=T) / 5000 ) * 5000),xlab="Sampling radius (km)",ylab="",main="",axes=FALSE,cex=pl_cex, cex.main=pl_cex_main, cex.lab=pl_cex_lab, cex.axis=pl_cex_axis)
+# 1 Hz samples.
+      vec_x_samp_1Hz_poly <- c(rev(vec_buoy_radius),vec_buoy_radius)
+      vec_y_samp_1Hz_poly <- c(rep(0,length(vec_buoy_radius)),array_radius_stats[7,1,1:length(vec_buoy_radius)])
+      polygon(vec_x_samp_1Hz_poly,vec_y_samp_1Hz_poly,border = NA,col="lightsteelblue3")
+      text(x=vec_buoy_radius[1], y=array_radius_stats[7,1,1], labels=paste0("N[1Hz] = ",array_radius_stats[7,1,1]), pos=2, cex=pl_cex_axis)
+      text(x=rev(vec_buoy_radius)[1], y=array_radius_stats[7,1,length(vec_buoy_radius)], labels=paste0("N[1Hz] = ",array_radius_stats[7,1,length(vec_buoy_radius)]), pos=3, cex=pl_cex_axis)
+# N samples.
+      vec_x_samp_N_poly <- c(rev(vec_buoy_radius),vec_buoy_radius)
+      vec_y_samp_N_poly <- c(rep(0,length(vec_buoy_radius)),array_radius_stats[6,1,1:length(vec_buoy_radius)])
+      polygon(vec_x_samp_N_poly,vec_y_samp_N_poly,border = NA,col="steelblue3")
+      text(x=vec_buoy_radius[1], y=array_radius_stats[6,1,1], labels=paste0("N = ",array_radius_stats[6,1,1]), pos=2, cex=pl_cex_axis)
+      text(x=rev(vec_buoy_radius)[1], y=array_radius_stats[6,1,length(vec_buoy_radius)], labels=paste0("N = ",array_radius_stats[6,1,length(vec_buoy_radius)]), pos=1, cex=pl_cex_axis)
+      par(new=TRUE)
+# Plot mean bias by buoy.
+      plot(NULL,xlim=c(20,100),ylim=c(-0.1,0.1),xlab="",ylab="Hs Mean Bias (m)",cex.lab=pl_cex_lab,cex.axis=pl_cex_axis)
+      abline(h=0,col="darkgrey",lwd=5)
+      for ( b_idx in 1:length(Bidx_max) ) {
+         lines(vec_buoy_radius,mat_buoy_bias_rad[b_idx,],lwd=10,col="coral1")
+         #points(vec_buoy_radius,mat_buoy_bias_rad[b_idx,],cex=1,col="coral1")
+      }      
+# Plot mean bias average.
+      points(vec_buoy_radius,mat_buoy_bias_rad[length(Bidx_max)+1,],cex=1,col="firebrick2")
+      lines(vec_buoy_radius,mat_buoy_bias_rad[length(Bidx_max)+1,],lwd=18,col="firebrick2")
+# Legend.
+      legend(x=20,y=-0.05, legend=c("Bias (all buoys)","Bias (single buoy)"),lwd=c(18,10),col=c("firebrick2","coral1"),cex=pl_cex_leg)
+# Plot mean Hs.
+      par(new=TRUE)
+      plot(vec_buoy_radius,array_radius_stats[1,1,1:length(vec_buoy_radius)],xlim=c(20,100),ylim=c(0,3),xlab="",ylab="",pch=19,col="blue",cex=5,axes=FALSE)
+      lines(c(vec_buoy_radius),array_radius_stats[1,1,1:length(vec_buoy_radius)],pch=19,col="white",cex=3)
+      axis(side=4,at=c(2,2.25,2.5,2.75,3,3.25),cex=pl_cex_axis,cex.lab=pl_cex_lab,cex.axis=pl_cex_axis)
+      mtext("Mean Hs (m)", side=4, line=8, adj=0.75, cex=pl_cex_axis)
+
+      dev.off()
+      system(paste("okular",fig_radius_stats_file_name,"&> /dev/null &"))
+   }
 
 # Close buoy radius loop.
    }
