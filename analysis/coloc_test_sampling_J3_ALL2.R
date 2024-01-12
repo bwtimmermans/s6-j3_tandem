@@ -44,7 +44,7 @@
 # 46085(4) bias gradient with latitude.
 # 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
-      Bidx_init <- 2:3
+      Bidx_init <- 2:9
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -1677,7 +1677,6 @@
       print(paste("ERROR!"))
    }
 
-   #for ( match_idx in mat_match_idx[1,1]:length(df_reg_J3$buoy_hs) ) {
    i_index <- 2
    gap_count <- 0
    for ( match_idx in (1+mat_match_idx[1,1]):length(df_reg_J3$buoy_hs) ) {
@@ -1694,11 +1693,16 @@
                gap_count <- gap_count + 1
             }
          } else {
-            #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ] ) + mat_match_idx[i_index-1,2] - 1
-            mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ] ) + mat_match_idx[i_index-1,2]
-            mat_match_idx[i_index,1] <- match_idx
-            i_index <- i_index + 1
-            gap_count <- 0
+            Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ]
+            if ( any(Lvec_test,na.rm=T) ) {
+               #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ] ) + mat_match_idx[i_index-1,2] - 1
+               mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ] ) + mat_match_idx[i_index-1,2]
+               mat_match_idx[i_index,1] <- match_idx
+               i_index <- i_index + 1
+               gap_count <- 0
+            } else {
+               gap_count <- gap_count + 1
+            }
          }
       } else {
          gap_count <- gap_count + 1
