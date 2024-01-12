@@ -13,9 +13,9 @@
    flag_plot_track_stats <- FALSE
    flag_plot_multi_cor <- FALSE
 
-   flag_scatter_plot <- TRUE
+   flag_scatter_plot <- FALSE
    flag_single_panel <- FALSE
-   flag_radius_plot <- TRUE
+   flag_radius_plot <- FALSE
 
    flag_buoy_bias_hist <- FALSE
 
@@ -44,7 +44,7 @@
 # 46085(4) bias gradient with latitude.
 # 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
-      Bidx_init <- 1:9
+      Bidx_init <- 2:3
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -73,7 +73,7 @@
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
    #Bidx_init <- c(1:6,15:18,21:29,31,32,34)
 
-   Sidx <- 1
+   Sidx <- 1:2
    flag_tandem <- TRUE
    if ( flag_tandem ) {
       m_limit <- 13
@@ -203,8 +203,9 @@
 #       3 = radius
 
    array_radius_stats <- array(NA,dim=c(7,4,10))
-   list_df_reg_radius <- list()
    vec_buoy_radius <- c(100,75,60,50,45,40,35,30,25)
+   vec_buoy_radius <- c(100)
+   list_df_reg_radius <- matrix(list(),nrow=length(vec_buoy_radius),ncol=3)
 
    for ( i_buoy_radius in 1:length(vec_buoy_radius) ) {
       buoy_radius <- vec_buoy_radius[i_buoy_radius]
@@ -1239,7 +1240,11 @@
    }
 
 #=================================================================================================#
-# Calculate median values based on "adaptive" sampling.
+# Calculate median values based on different sampling methods
+# "Full track" median.
+# Nearest 1 Hz.
+# Nearest 3 Hz.
+# "Adaptive" sampling based on correlation.
 
    #mat_list_trackID_hs_med_rand <- matrix(list(),nrow=13,ncol=length(vec_unique_trackID))
    mat_list_trackID_hs_med <- matrix(list(),nrow=3,ncol=length(Bidx))
@@ -1324,55 +1329,46 @@
    print(paste(" SQRT ERROR VAR [MED - ADAPT] **",sqrt( var( unlist(list_trackID_hs_med)-unlist(list_trackID_hs_med_adapt), na.rm=T ) ) ) )
    #print(paste(" SQRT ERROR VAR [MED - MIN]   **",sqrt( var( unlist(list_trackID_hs_med)-unlist(list_trackID_hs_min), na.rm=T ) ) ) )
 
+#=================================================================================================#
+# Create data structures for track statistics, plotting and so on.
+
+   for (S_idx in Sidx) {
 # Refactor the buoy data for trackID (to match the sat data).
-   S_idx <- Sidx[1]
-   mat_list_buoy_hs_coloc_trackID <- matrix(list(),nrow=3,ncol=length(Bidx))
-   for (b_idx in (1:length(Bidx))[vec_B_active]) { BB <- mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]]; list_BB <- list(); for ( mm in 1:dim(BB)[2] ) { list_BB[[mm]] <- unlist(BB[,mm]) }; mat_list_buoy_hs_coloc_trackID[[S_idx,b_idx]] <- list_BB }
+      #S_idx <- Sidx[1]
+      mat_list_buoy_hs_coloc_trackID <- matrix(list(),nrow=3,ncol=length(Bidx))
+      for (b_idx in (1:length(Bidx))[vec_B_active]) { BB <- mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]]; list_BB <- list(); for ( mm in 1:dim(BB)[2] ) { list_BB[[mm]] <- unlist(BB[,mm]) }; mat_list_buoy_hs_coloc_trackID[[S_idx,b_idx]] <- list_BB }
 
 # Plotting.
 # Correlation and regression.
-   #df_reg <- data.frame(buoy_hs=unlist(mat_list_buoy_hs_coloc_AD[1,][,1]),sat_hs=unlist(mat_list_trackID_hs_med[[1,1]][[1]]))
-   df_reg <- data.frame(
-                        buoy_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]) })),
-                        sat_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med[[S_idx,x]]) })),
-                        sat_hs_adapt=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt[[S_idx,x]]) })),
-                        sat_hs_min1=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min1[[S_idx,x]]) })),
-                        sat_hs_min3=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3[[S_idx,x]]) })),
-                        sat_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_1Hz_count[[S_idx,x]]) })),
-                        sat_adapt_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt_1Hz_count[[S_idx,x]]) })),
-                        sat_min3_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3_1Hz_count[[S_idx,x]]) })),
-                        buoy_lab=unlist(lapply(X=1:length(Bidx),FUN=function(x) { rep(buoy_list[b_idx_list[Bidx[x]]],length(unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]))) })),
-                        track_dist=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
+      #df_reg <- data.frame(buoy_hs=unlist(mat_list_buoy_hs_coloc_AD[1,][,1]),sat_hs=unlist(mat_list_trackID_hs_med[[1,1]][[1]]))
+      df_reg <- data.frame(
+                           buoy_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]) })),
+                           sat_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med[[S_idx,x]]) })),
+                           sat_hs_adapt=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt[[S_idx,x]]) })),
+                           sat_hs_min1=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min1[[S_idx,x]]) })),
+                           sat_hs_min3=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3[[S_idx,x]]) })),
+                           sat_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_1Hz_count[[S_idx,x]]) })),
+                           sat_adapt_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt_1Hz_count[[S_idx,x]]) })),
+                           sat_min3_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3_1Hz_count[[S_idx,x]]) })),
+                           buoy_lab=unlist(lapply(X=1:length(Bidx),FUN=function(x) { rep(buoy_list[b_idx_list[Bidx[x]]],length(unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]))) })),
+                           track_dist=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
 							 lapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
 								       	rep(mat_list_tr_min_lon_lat[[S_idx,x]][y,3], length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]][[y]])) } ) } ) ),
-                        track_dir=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
+                           track_dir=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
 							 lapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
 								       	rep(rownames(mat_list_tr_min_lon_lat[[S_idx,x]])[y], length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]][[y]])) } ) } ) ) )
 # Remove low values.
-   df_reg$buoy_hs[df_reg$buoy_hs < 0.25] <- NA
-   df_reg$sat_hs[df_reg$sat_hs < 0.25] <- NA
-   df_reg$sat_hs_adapt[df_reg$sat_hs_adapt < 0.25] <- NA
-   df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.75] <- NA
-   df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.75] <- NA
+      df_reg$buoy_hs[df_reg$buoy_hs < 0.25] <- NA
+      df_reg$sat_hs[df_reg$sat_hs < 0.25] <- NA
+      df_reg$sat_hs_adapt[df_reg$sat_hs_adapt < 0.25] <- NA
+      df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.75] <- NA
+      df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.75] <- NA
 
 # Save df_reg into a master list.
-   list_df_reg_radius[[i_buoy_radius]] <- df_reg
+      list_df_reg_radius[[i_buoy_radius,S_idx]] <- df_reg
+   }
 
-# 1 Hz counts.
-   vec_1Hz_count <- c( sum(df_reg$sat_1Hz_count[!is.na(df_reg$buoy_hs)]),
-                       sum(df_reg$sat_adapt_1Hz_count[!is.na(df_reg$buoy_hs)]),
-                       sum(!is.na(df_reg$buoy_hs) & !is.na(df_reg$sat_hs_min1)),
-                       sum(df_reg$sat_min3_1Hz_count[!is.na(df_reg$buoy_hs)]) )
-
-# Buoy by buoy stats.
-# list_AA_buoy <- sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]) })
-# list_AA_sat <- sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3[[S_idx,x]]) })
-# BB <- sapply(X=1:11,function(x) { temp <- !is.na(list_AA_sat[[x]]) & !is.na(list_AA_buoy[[x]]); mean( list_AA_sat[[x]][temp] ) - mean( list_AA_buoy[[x]][temp] ) })
-# X11(); hist(BB)
-
-   high_bias <- 0.75
-   vec_data_sets <- c("sat_hs","sat_hs_adapt","sat_hs_min1","sat_hs_min3")
-
+#=================================================================================================#
 # Single-panel plotting.
    if ( flag_scatter_plot ) {
 
@@ -1397,7 +1393,7 @@
          if ( length(Bidx) <= 2 ) {
             fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",paste(buoy_list[b_idx_list[Bidx]]),"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_",paste(buoy_list[b_idx_list[Bidx]],collapse='_'),"_",gsub('[.]','',cor_thresh),"_ADAPT.png")
          } else {
-            fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",fig_lab_region,"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_BUOYS_",gsub('[.]','',cor_thresh),"_ADAPT.png")
+               fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",fig_lab_region,"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_BUOYS_",gsub('[.]','',cor_thresh),"_ADAPT.png")
 # Multi-panel plotting.
          }
       } else {
@@ -1420,6 +1416,21 @@
             fig_scatter_adapt_nearest_file_name <- paste0("./figures/test_sampling3/",fig_lab_region,"/scatter_adapt_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_radius,"km_BUOYS_",gsub('[.]','',cor_thresh),"_MULTI.png")
          }
       }
+
+# 1 Hz counts.
+      vec_1Hz_count <- c( sum(df_reg$sat_1Hz_count[!is.na(df_reg$buoy_hs)]),
+                          sum(df_reg$sat_adapt_1Hz_count[!is.na(df_reg$buoy_hs)]),
+                          sum(!is.na(df_reg$buoy_hs) & !is.na(df_reg$sat_hs_min1)),
+                          sum(df_reg$sat_min3_1Hz_count[!is.na(df_reg$buoy_hs)]) )
+
+# Buoy by buoy stats.
+# list_AA_buoy <- sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]) })
+# list_AA_sat <- sapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3[[S_idx,x]]) })
+# BB <- sapply(X=1:11,function(x) { temp <- !is.na(list_AA_sat[[x]]) & !is.na(list_AA_buoy[[x]]); mean( list_AA_sat[[x]][temp] ) - mean( list_AA_buoy[[x]][temp] ) })
+# X11(); hist(BB)
+
+      high_bias <- 0.75
+      vec_data_sets <- c("sat_hs","sat_hs_adapt","sat_hs_min1","sat_hs_min3")
 
 ## Fudge to examine [A]scending vs [D]ecsending tracks.
 #   df_reg1 <- df_reg
@@ -1491,7 +1502,12 @@
 
 #=================================================================================================#
    if ( flag_radius_plot & (i_buoy_radius == length(vec_buoy_radius) ) ) {
-# Plotting statistics as a funtion of sampling radius.
+# Generate stats directly from df_regi (N and N[1 Hz]).
+# Lvec_temp <- !is.na(list_df_reg_radius[[1]]$buoy_hs) & !is.na(list_df_reg_radius[[1]]$sat_hs)
+# sum(Lvec_temp)
+# sum( list_df_reg_radius[[1]]$sat_1Hz_count[Lvec_temp] )
+
+# Plotting statistics as a function of sampling radius.
 # Generate mean bias for each buoy (background lines).
       mat_buoy_bias_rad <- matrix(nrow=length(Bidx_max)+1,ncol=length(vec_buoy_radius))
       for ( i_b_rad in 1:length(vec_buoy_radius) ) {
@@ -1545,6 +1561,7 @@
       par(new=TRUE)
 # Plot mean bias by buoy.
       plot(NULL,xlim=c(20,100),ylim=c(-0.1,0.1),xlab="",ylab="Hs Mean Bias (m)",cex.lab=pl_cex_lab,cex.axis=pl_cex_axis)
+      abline(h=c(-0.02,-0.01,0.01,0.02),col="grey",lwd=3)
       abline(h=0,col="darkgrey",lwd=5)
       for ( b_idx in 1:length(Bidx_max) ) {
          lines(vec_buoy_radius,mat_buoy_bias_rad[b_idx,],lwd=10,col="coral1")
@@ -1643,6 +1660,53 @@
       system(paste("okular",fig_buoy_mean_bootstrap_file_name,"&> /dev/null &"))
    }
    #unique( df_reg$track_dist[df_reg$buoy_lab == 46066] )
+
+#=================================================================================================#
+# Algorithm to match up J3, tandem data but using the buoy measurements in df_reg.
+# Remove NAs.
+   df_reg_J3 <- list_df_reg_radius[[1,1]]
+   df_reg_S6LRM <- list_df_reg_radius[[1,2]]
+   mat_match_idx <- matrix(NA,nrow=length(df_reg_J3$buoy_hs),2)
+   if ( any(df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10],na.rm=T) ) {
+      mat_match_idx[1,1] <- 1
+      mat_match_idx[1,2] <- which( df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10] )
+   } else if ( any(df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10],na.rm=T) ) {
+      mat_match_idx[1,1] <- which( df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10] )
+      mat_match_idx[1,2] <- 1
+   } else {
+      print(paste("ERROR!"))
+   }
+
+   #for ( match_idx in mat_match_idx[1,1]:length(df_reg_J3$buoy_hs) ) {
+   i_index <- 2
+   gap_count <- 0
+   for ( match_idx in (1+mat_match_idx[1,1]):length(df_reg_J3$buoy_hs) ) {
+   #for ( match_idx in (1+mat_match_idx[1,1]):100 ) {
+      if ( !is.na(df_reg_J3$buoy_hs[match_idx]) ) {
+         if ( gap_count > 0 ) {
+            Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ]
+            if ( any(Lvec_test,na.rm=T) ) {
+               mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ] ) + mat_match_idx[i_index-1,2] - 1 + (match_idx-mat_match_idx[i_index-1,2]-3)
+               mat_match_idx[i_index,1] <- match_idx
+               i_index <- i_index + 1
+               gap_count <- 0
+            } else {
+               gap_count <- gap_count + 1
+            }
+         } else {
+            #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ] ) + mat_match_idx[i_index-1,2] - 1
+            mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ] ) + mat_match_idx[i_index-1,2]
+            mat_match_idx[i_index,1] <- match_idx
+            i_index <- i_index + 1
+            gap_count <- 0
+         }
+      } else {
+         gap_count <- gap_count + 1
+      }
+   }
+   X11(); plot( df_reg_J3$buoy_hs[mat_match_idx[,1]], df_reg_S6LRM$buoy_hs[mat_match_idx[,2]] ); abline(0,1)
+   X11(); plot( df_reg_J3$sat_hs[mat_match_idx[,1]], df_reg_S6LRM$sat_hs[mat_match_idx[,2]] ); abline(0,1)
+   mean(df_reg_S6LRM$sat_hs[mat_match_idx[,2]],na.rm=T) - mean(df_reg_J3$sat_hs[mat_match_idx[,1]],na.rm=T)
 
 #=================================================================================================#
 # ggplot.
