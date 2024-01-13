@@ -73,7 +73,7 @@
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
    #Bidx_init <- c(1:6,15:18,21:29,31,32,34)
 
-   Sidx <- 1:2
+   Sidx <- c(1,3)
    flag_tandem <- TRUE
    if ( flag_tandem ) {
       m_limit <- 13
@@ -1665,7 +1665,7 @@
 # Algorithm to match up J3, tandem data but using the buoy measurements in df_reg.
 # Remove NAs.
    df_reg_J3 <- list_df_reg_radius[[1,1]]
-   df_reg_S6LRM <- list_df_reg_radius[[1,2]]
+   df_reg_S6LRM <- list_df_reg_radius[[1,3]]
    mat_match_idx <- matrix(NA,nrow=length(df_reg_J3$buoy_hs),2)
    if ( any(df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10],na.rm=T) ) {
       mat_match_idx[1,1] <- 1
@@ -1680,12 +1680,14 @@
    i_index <- 2
    gap_count <- 0
    for ( match_idx in (1+mat_match_idx[1,1]):length(df_reg_J3$buoy_hs) ) {
-   #for ( match_idx in (1+mat_match_idx[1,1]):100 ) {
+   #for ( match_idx in (1+mat_match_idx[1,1]):200 ) {
       if ( !is.na(df_reg_J3$buoy_hs[match_idx]) ) {
          if ( gap_count > 0 ) {
-            Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ]
+            #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ]
+            Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ]
             if ( any(Lvec_test,na.rm=T) ) {
-               mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ] ) + mat_match_idx[i_index-1,2] - 1 + (match_idx-mat_match_idx[i_index-1,2]-3)
+               #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ] ) + mat_match_idx[i_index-1,2] - 1 + (match_idx-mat_match_idx[i_index-1,2]-3)
+               mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ] ) + mat_match_idx[i_index-1,2]
                mat_match_idx[i_index,1] <- match_idx
                i_index <- i_index + 1
                gap_count <- 0
@@ -1693,7 +1695,8 @@
                gap_count <- gap_count + 1
             }
          } else {
-            Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ]
+            #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ]
+            Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]+1 ]
             if ( any(Lvec_test,na.rm=T) ) {
                #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ] ) + mat_match_idx[i_index-1,2] - 1
                mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ] ) + mat_match_idx[i_index-1,2]
