@@ -26,7 +26,7 @@
    buoy_list <- c("46246","46066","46078","46001","46085","46005","46002","46006","46059",buoy_list_PAC_NS)
 
    vec_operator <- unique(df_buoy_data$operator)
-   vec_cols <- c("yellow2","grey","cyan4","grey","mediumpurple1","grey")
+   vec_cols <- c("yellow2","grey","cyan4","blue","mediumpurple1","grey")
    fig_lab_region <- "OS"
 
 ## Nearshore.
@@ -122,19 +122,20 @@
 
    pl_mfrow <- c(2,2)
    pl_oma <- c(2,2,2,2)
-   pl_mar <- c(20,12,8,5)
+   pl_mar <- c(20,12,18,5)
    pl_mgp <- c(9,3,0)
    pl_cex <- 4.0; pl_cex_main <- 6; pl_cex_lab <- 6; pl_cex_axis <- 4; pl_cex_leg <- 5
 
-   fig_buoy_coverage <- paste0("./figures/",fig_lab_region,".png")
-   png(fig_buoy_coverage, width = 3000, height = 4000)
-   par(oma=pl_oma,mar=pl_mar,mgp=pl_mgp)
+   #fig_buoy_coverage <- paste0("./figures/",fig_lab_region,".png")
+   fig_buoy_coverage <- paste0("./figures/all_buoys.png")
+   png(fig_buoy_coverage, width = 3000, height = 4200)
+   par(oma=pl_oma,mar=pl_mar,mgp=pl_mgp,xpd=TRUE)
 
    #X11()
    #par(mar=c(6,4,3,1))
 
    #plot(1:dim(mat_plot)[1],mat_plot[,1],pch="|",ylim=c(0,max(mat_plot,na.rm=T)),col=vec_cols[1],xlab="",ylab="",cex=pl_cex,cex.axis=pl_cex_axis,axes=F)
-   plot(NULL,xlim=c(0,dim(mat_plot)[1]),ylim=c(0.05,max(mat_plot,na.rm=T)),xlab="",ylab="",axes=F)
+   plot(NULL,xlim=c(0,dim(mat_plot)[1]),ylim=c(0.10,max(mat_plot,na.rm=T)),xlab="",ylab="",axes=F)
 
 
 # X-axis.
@@ -144,8 +145,8 @@
 # Y-axis.
    axis(side=2,at=seq(0,max(mat_plot,na.rm=T),0.05),labels=c(NA,buoy_list),las=1,cex.axis=pl_cex_axis)
 
-   abline(v=x_at,col="grey",lwd=6)
-   abline(h=seq(0,max(mat_plot,na.rm=T),0.05),col="darkgrey",lwd=4)
+   abline(v=x_at,col="grey",lwd=6,xpd=FALSE)
+   abline(h=seq(0.05,max(mat_plot,na.rm=T),0.05),col="darkgrey",lwd=4)
    abline(h=0.475,col="black",lwd=10)
 
 # Payload metadata.
@@ -172,7 +173,9 @@
 # 1448
 #   which( format( as.POSIXct( vec_time_master, tz='GMT', origin='2017-01-01'), "%Y%m%d") == "20220427" )
 # 1943
-   rect(1448, 0, 1943, 0.05*length(buoy_list), density = 5)
+   rect(1448, 0, 1943, 0.05*length(buoy_list)+0.025, density = 5)
+# Legend.
+   legend(0,0.05*(4+length(buoy_list)),legend=c("NOAA","USACE","ECCC","CDIP","NSF","Others"),pch=rep(15,6),pt.cex=c(10,8,10,10,10,10,10),col=c("yellow2","darkorange1","cyan4","mediumpurple1","blue","grey"),cex=6,horiz=TRUE)
 
    dev.off()
    system(paste("okular",fig_buoy_coverage,"&> /dev/null &"))
