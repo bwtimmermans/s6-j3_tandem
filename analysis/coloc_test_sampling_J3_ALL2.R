@@ -20,7 +20,8 @@
 
    flag_buoy_bias_hist <- FALSE
 
-   flag_plot_tandem_anom <- FALSE
+   flag_plot_tandem_anom <- TRUE
+   flag_tandem_anom_buoy <- TRUE
 
    flag_plot_ggmap <- FALSE
 # Correlation (COR) or mean bias (BIAS).
@@ -47,7 +48,7 @@
 # 46085(4) bias gradient with latitude.
 # 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
-      Bidx_init <- 1:11
+      Bidx_init <- 4
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -60,7 +61,7 @@
    }
 
 # Bin width for along-track sampling (5 km).
-   dist_bin_width <- 3
+   dist_bin_width <- 10
 
    flag_ERA5_BILIN <- FALSE
 
@@ -781,7 +782,6 @@
                tr_idx <- which( array_list_XXing[[m_idx,S_idx,b_idx]] == pp )
 
                if ( length(tr_idx) > 0 ) {
-
                   for (kk in 1:length(tr_idx)) {
                      mat_AA <- cbind(
                                   mat_list_buoy_data1[[m_idx]][[2]][mat_list_Lvec_buoy_samp[[m_idx,S_idx]]][mat_list_breaks_master[[m_idx,S_idx]][[ tr_idx[kk] ]] ],
@@ -880,8 +880,24 @@
                if ( length(mat_list_trackID[[m_idx,jj]]) > 0 ) {
 
                   for ( ii in 1:length(mat_list_trackID[[m_idx,jj]]) ) {
+# BUG:
+# mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] (correctly) contains matching values.
+# But when used to index elements of another vector, the last matching index overwrites any earlier entries.
+#
+# Possible SOLUTION to be implemented, taken from:
+# /home/ben/research/waves/buoy_data/compare_buoys.R
+# list_buoy_hs_binned <- vector(mode = "list", length = sum(Ivec_time_year_len))
+# for ( x in 1:length(unlist(list_time_year_idx))) { list_buoy_hs_binned[[unlist(list_time_year_idx)[x]]] <- c(list_buoy_hs_binned[[unlist(list_time_year_idx)[x]]],vec_hs_loc[x]) }
+#
+# Probably need to take an average (mean?) of mat_list_1Hz_hs for each bin, where more than one point lands in a single bin.
+# sapply( X=1:length( unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ) ), FUN=function(x) { mean( mat_list_1Hz_hs[[.]][ which( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] == unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] )[x] ) } )
+# sapply(X=1:length( unique( mat_list_bins_trackID[[S_idx,b_idx]][[2,1]][[1]] ) ),FUN=function(x) { mean( mat_list_1Hz_hs[[2,S_idx]][mat_list_trackID[[2,1]][[1]]][ which( mat_list_bins_trackID[[S_idx,b_idx]][[2,1]][[1]] == unique( mat_list_bins_trackID[[S_idx,b_idx]][[2,1]][[1]] )[x] ) ] ) } )
+
                      mat_trackID_hs_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
                      mat_trackID_rms_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_rms_QC[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
+# Old code (broken).
+#                     mat_trackID_hs_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
+#                     mat_trackID_rms_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_rms_QC[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
                   }
                }
 # Aggregated Hs data (over months) stored here.
@@ -1671,61 +1687,79 @@
 # Algorithm to match up J3, tandem data but using the buoy measurements in df_reg.
 # Remove NAs.
    if ( flag_plot_tandem_anom ) {
+# Use data from buoy match-ups (excludes some data due to absence of buoy data).
+      if ( flag_tandem_anom_buoy ) {
 
-      flag_S6SAR <- FALSE
-      flag_S6SAR_correction1 <- TRUE
-
-      tandem_idx <- c(1,2)
-      if ( tandem_idx[2] == 3 ) {
-         flag_S6SAR <- TRUE
-      }
-      df_reg_J3 <- list_df_reg_radius[[1,tandem_idx[1]]]
-      df_reg_S6LRM <- list_df_reg_radius[[1,tandem_idx[2]]]
-      mat_match_idx <- matrix(NA,nrow=length(df_reg_J3$buoy_hs),2)
-      if ( any(df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10],na.rm=T) ) {
-         mat_match_idx[1,1] <- 1
-         mat_match_idx[1,2] <- which( df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10] )
-      } else if ( any(df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10],na.rm=T) ) {
-         mat_match_idx[1,1] <- which( df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10] )
-         mat_match_idx[1,2] <- 1
-      } else {
-         print(paste("ERROR!"))
-      }
-
-      i_index <- 2
-      gap_count <- 0
-      for ( match_idx in (1+mat_match_idx[1,1]):length(df_reg_J3$buoy_hs) ) {
-      #for ( match_idx in (1+mat_match_idx[1,1]):200 ) {
-         if ( !is.na(df_reg_J3$buoy_hs[match_idx]) ) {
-            if ( gap_count > 0 ) {
-               #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ]
-               Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ]
-               if ( any(Lvec_test,na.rm=T) ) {
-                  #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ] ) + mat_match_idx[i_index-1,2] - 1 + (match_idx-mat_match_idx[i_index-1,2]-3)
-                  mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ] ) + mat_match_idx[i_index-1,2]
-                  mat_match_idx[i_index,1] <- match_idx
-                  i_index <- i_index + 1
-                  gap_count <- 0
+         lab_pairing <- "BUOYPAIR"
+         flag_S6SAR <- FALSE
+         flag_S6SAR_correction1 <- TRUE
+   
+         tandem_idx <- c(1,2)
+         if ( tandem_idx[2] == 3 ) {
+            flag_S6SAR <- TRUE
+         }
+         df_reg_J3 <- list_df_reg_radius[[1,tandem_idx[1]]]
+         df_reg_S6LRM <- list_df_reg_radius[[1,tandem_idx[2]]]
+         mat_match_idx <- matrix(NA,nrow=length(df_reg_J3$buoy_hs),2)
+         if ( any(df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10],na.rm=T) ) {
+            mat_match_idx[1,1] <- 1
+            mat_match_idx[1,2] <- which( df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10] )
+         } else if ( any(df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10],na.rm=T) ) {
+            mat_match_idx[1,1] <- which( df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10] )
+            mat_match_idx[1,2] <- 1
+         } else {
+            print(paste("ERROR!"))
+         }
+   
+         i_index <- 2
+         gap_count <- 0
+         for ( match_idx in (1+mat_match_idx[1,1]):length(df_reg_J3$buoy_hs) ) {
+         #for ( match_idx in (1+mat_match_idx[1,1]):200 ) {
+            if ( !is.na(df_reg_J3$buoy_hs[match_idx]) ) {
+               if ( gap_count > 0 ) {
+                  #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ]
+                  Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ]
+                  if ( any(Lvec_test,na.rm=T) ) {
+                     #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ] ) + mat_match_idx[i_index-1,2] - 1 + (match_idx-mat_match_idx[i_index-1,2]-3)
+                     mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ] ) + mat_match_idx[i_index-1,2]
+                     mat_match_idx[i_index,1] <- match_idx
+                     i_index <- i_index + 1
+                     gap_count <- 0
+                  } else {
+                     gap_count <- gap_count + 1
+                  }
                } else {
-                  gap_count <- gap_count + 1
+                  #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ]
+                  Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]+1 ]
+                  if ( any(Lvec_test,na.rm=T) ) {
+                     #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ] ) + mat_match_idx[i_index-1,2] - 1
+                     mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ] ) + mat_match_idx[i_index-1,2]
+                     mat_match_idx[i_index,1] <- match_idx
+                     i_index <- i_index + 1
+                     gap_count <- 0
+                  } else {
+                     gap_count <- gap_count + 1
+                  }
                }
             } else {
-               #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ]
-               Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]+1 ]
-               if ( any(Lvec_test,na.rm=T) ) {
-                  #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ] ) + mat_match_idx[i_index-1,2] - 1
-                  mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ] ) + mat_match_idx[i_index-1,2]
-                  mat_match_idx[i_index,1] <- match_idx
-                  i_index <- i_index + 1
-                  gap_count <- 0
-               } else {
-                  gap_count <- gap_count + 1
-               }
+               gap_count <- gap_count + 1
             }
-         } else {
-            gap_count <- gap_count + 1
          }
-      }
+# Create data frame for plotting.
+         df_plot_tandem <- data.frame(
+				   J3_buoy_hs=df_reg_J3$buoy_hs[mat_match_idx[,1]],
+				   J3_sat_hs=df_reg_J3$sat_hs[mat_match_idx[,1]],
+				   S6_sat_hs=df_reg_S6LRM$sat_hs[mat_match_idx[,2]] )
+
+# Specify J3 & S6 data.
+         vec_sat1 <- df_plot_tandem$J3_sat_hs
+         #vec_sat2 <- df_plot_tandem$S6_sat_hs
+         vec_sat2 <- df_plot_tandem$S6_sat_hs
+# Get paired data.
+         vec_sat1_paired <- vec_sat1[!is.na(vec_sat1) & !is.na(vec_sat2)]
+         vec_sat2_paired <- vec_sat2[!is.na(vec_sat1) & !is.na(vec_sat2)]
+         vec_data_diff <- vec_sat1_paired-vec_sat2_paired
+      } else {
 
 #=================================================================================================#
 #      X11(); plot( df_reg_J3$buoy_hs[mat_match_idx[,1]], df_reg_S6LRM$buoy_hs[mat_match_idx[,2]] ); abline(0,1)
@@ -1733,11 +1767,19 @@
 #      mean(df_reg_S6LRM$sat_hs[mat_match_idx[,2]],na.rm=T) - mean(df_reg_J3$sat_hs[mat_match_idx[,1]],na.rm=T)
 #=================================================================================================#
 # Direct calculation of median (from older code).
+         lab_pairing <- "DIRECTPAIR"
 
+         flag_S6SAR <- FALSE
+         flag_S6SAR_correction1 <- TRUE
+   
+         tandem_idx <- c(1,2)
+         if ( tandem_idx[2] == 3 ) {
+            flag_S6SAR <- TRUE
+         }
 # Calculate medians (more tracks for J3 than S6 due to missing data!).
-      vec_Q50_J3_ALL <- NULL
-      vec_Q50_S6LRM_ALL <- NULL
-      Lvec_qual_numval_J3_ALL <- NULL
+         vec_Q50_J3_ALL <- NULL
+         vec_Q50_S6LRM_ALL <- NULL
+         Lvec_qual_numval_J3_ALL <- NULL
 
       for (b_idx in 1:length(Bidx)) {
       #for (b_idx in 1) {
@@ -1763,6 +1805,19 @@
             vec_Q50_S6LRM <- sapply( X=1:length(mat_list_breaks_master[[m_idx,2]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,2]][ mat_list_breaks_master[[m_idx,2]][[x]] ] , na.rm=T ) } )
             vec_Q50_S6LRM_ALL <- c(vec_Q50_S6LRM_ALL,vec_Q50_S6LRM[apply(X=mat_slot_J3S6L,MAR=1,FUN=any)])
          }
+# Set Get paired data.
+         vec_sat1_paired <- vec_Q50_J3_ALL
+         vec_sat2_paired <- vec_Q50_S6LRM_ALL
+# Old QC scheme.
+         vec_sat1_paired <- vec_Q50_J3_ALL[!Lvec_qual_numval_J3_ALL]
+         vec_sat2_paired <- vec_Q50_S6LRM_ALL[!Lvec_qual_numval_J3_ALL]
+         vec_data_diff <- vec_sat1_paired-vec_sat2_paired
+# Create initial data frame for plotting.
+         df_plot_tandem <- data.frame(
+				   J3_sat_hs=vec_sat1_paired,
+				   S6_sat_hs=vec_sat2_paired )
+
+      }
       }
 
 # Debug.
@@ -1786,20 +1841,6 @@
 # length(mat_list_buoy_data2[[m_idx]][[4]])
 
 #=================================================================================================#
-# Create data frame for plotting.
-      df_plot_tandem <- data.frame(
-			   J3_buoy_hs=df_reg_J3$buoy_hs[mat_match_idx[,1]],
-			   J3_sat_hs=df_reg_J3$sat_hs[mat_match_idx[,1]],
-			   S6_sat_hs=df_reg_S6LRM$sat_hs[mat_match_idx[,2]] )
-
-# Specify J3 & S6 data.
-      vec_sat1 <- df_plot_tandem$J3_sat_hs
-      #vec_sat2 <- df_plot_tandem$S6_sat_hs
-      vec_sat2 <- df_plot_tandem$S6_sat_hs
-# Get paired data.
-      vec_sat1_paired <- vec_sat1[!is.na(vec_sat1) & !is.na(vec_sat2)]
-      vec_sat2_paired <- vec_sat2[!is.na(vec_sat1) & !is.na(vec_sat2)]
-      vec_data_diff <- vec_sat1_paired-vec_sat2_paired
 
 # Fit linear model correction to S6SAR.
       if ( flag_S6SAR & flag_S6SAR_correction1 ) {
@@ -1845,7 +1886,7 @@
 # https://r-graph-gallery.com/2d-density-plot-with-ggplot2
 # https://stats.stackexchange.com/questions/12392/how-to-compare-two-datasets-with-q-q-plot-using-ggplot2
       require(ggplot2)
-      fig_scatter_filename <- paste0("./figures/test_sampling3/OS/ggplot_scatter_anomaly_J3-",file_name_lab,"_F01.png")
+      fig_scatter_filename <- paste0("./figures/test_sampling3/OS/ggplot_scatter_anomaly_J3-",file_name_lab,"_",lab_pairing,".png")
 # Data for Q-Q plot.
       #qq_data <- as.data.frame(qqplot(df_plot_tandem$J3_sat_hs, df_plot_tandem$S6_sat_hs, plot.it=FALSE))
 
