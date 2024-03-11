@@ -4,9 +4,9 @@
    require(viridis)
 
 #=================================================================================================#
-   flag_plot_TC_bar <- FALSE
+   flag_plot_TC_bar <- TRUE
    flag_period_thresh <- FALSE
-   flag_plot_series <- TRUE
+   flag_plot_series <- FALSE
 
    min_bin_1Hz <- c(1,3,5,7)
    lab_min_bin_1Hz <- paste0("min",min_bin_1Hz)
@@ -39,7 +39,8 @@
          mat_time_match <- cbind(1:length(vec_time_match),vec_time_match)
          mat_time_match <- mat_time_match[!is.na(mat_time_match[,2]),]
 # Crate new df including S6LRM.
-         df_reg_J3 <- cbind( df_reg_J3[mat_time_match[,1],], S6LRM_hs=df_reg_S6LRM$sat_hs[mat_time_match[,2]])
+         #df_reg_J3 <- cbind( df_reg_J3[mat_time_match[,1],], S6LRM_hs=df_reg_S6LRM$sat_hs[mat_time_match[,2]])
+         df_reg_J3 <- cbind( df_reg_J3[mat_time_match[,1],], S6LRM_hs=eval(parse(text=paste0("df_reg_S6LRM$sat_hs_min",min_bin_1Hz[min_bin_1Hz_idx],"[mat_time_match[,2]]"))))
       }
       if ( !is.null(list_df_reg_radius[[i_b_rad,3]]) ) {
          df_reg_S6SAR <- list_df_reg_radius[[i_b_rad,3]]
@@ -48,7 +49,8 @@
          mat_time_match <- cbind(1:length(vec_time_match),vec_time_match)
          mat_time_match <- mat_time_match[!is.na(mat_time_match[,2]),]
 # Crate new df including S6SAR.
-         df_reg_J3 <- cbind( df_reg_J3[mat_time_match[,1],], S6SAR_hs=df_reg_S6SAR$sat_hs[mat_time_match[,2]])
+         #df_reg_J3 <- cbind( df_reg_J3[mat_time_match[,1],], S6SAR_hs=df_reg_S6SAR$sat_hs[mat_time_match[,2]])
+         df_reg_J3 <- cbind( df_reg_J3[mat_time_match[,1],], S6SAR_hs=eval(parse(text=paste0("df_reg_S6SAR$sat_hs_min",min_bin_1Hz[min_bin_1Hz_idx],"[mat_time_match[,2]]"))))
       }
       df_reg <- eval(parse(text=paste0("cbind(df_reg_J3,sat_hs_CAL_PRE=df_reg_J3$sat_hs_min",min_bin_1Hz[min_bin_1Hz_idx],")")))
       #mat_list_slot_J3B <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) ) } )
@@ -56,7 +58,7 @@
 #=================================================================================================#
 # Calibration.
 # Assume buoys = truth, and use linear model to remove linear dependency.
-      df_reg1 <- df_reg[!is.na(df_reg$buoy_hs) & !is.na(df_reg$sat_hs_CAL_PRE) & !is.na(df_reg$ERA5_hs),]
+      df_reg1 <- df_reg[!is.na(df_reg$buoy_hs) & !is.na(df_reg$sat_hs_CAL_PRE) & !is.na(df_reg$ERA5_hs) & !is.na(df_reg$S6LRM_hs) & !is.na(df_reg$S6SAR_hs),]
 
       lm_J3B = lm(buoy_hs ~ sat_hs_CAL_PRE, data=df_reg1)
       lm_ERA5B = lm(buoy_hs ~ ERA5_hs, data=df_reg1)
@@ -89,7 +91,7 @@
 
 # Loop over omission of tandem datasets.
       df_plot_data_TC <- NULL
-      for (i_data in c(1)) {
+      for (i_data in c(1,2,3)) {
 # Bootstrap uncertainty.
 # Get the indices of the triplets.
          vec_coloc_idx <- which(Lvec_coloc_idx_master)
@@ -201,7 +203,7 @@
    }
 # Save list_TC_stats_min_bin for multiple plotting.
    TC_stats_file_name <- paste0("./R_data_saved/list_TC_stats_min_bin_",str_region,"_S",paste(Sidx,collapse=''),"_M",m_limit,"_",buoy_radius,"km_",lab_min_bin_1Hz[min_bin_1Hz_idx],".Robj")
-   save(list_TC_stats_min_bin,file = TC_stats_file_name)
+   #save(list_TC_stats_min_bin,file = TC_stats_file_name)
 
 #=================================================================================================#
 # Plot TC error gainst parameters (like sampling raduis, min1 etc).
@@ -231,25 +233,26 @@
       #vec_cols <- c("#F8766D","#A3A500","#00BF7D","#00B0F6","#E76BF3")
       vec_cols <- c("#00BF7D","#00B0F6","#E76BF3","#F8766D","#A3A500")
       vec_pch <- c(15,17,18,19)
-      vec_pt_cex <- c(7,5)
-      vec_pt_offset <- c(0,0.2)
+      vec_pt_cex <- c(7,5,7)
+      mat_pt_cex <- cbind(c(7,7,7,7),c(5,5,5,5),c(7,7,9,7))
+      mat_pt_offset <- cbind(c(0,0,0,0),c(0.2,0.2,0.2,0.2),c(0.4,0.5,0.6,NA))
 # Plot TC errors.
 # Load data files for different runs.
-      vec_stat_files <- c("./R_data_saved/list_TC_stats_min_bin_PAC_OS_S1_M60_50km_min7.Robj","./R_data_saved/list_TC_stats_min_bin_PAC_OS_S1_M60_50km_min7_46246.Robj")
-      for ( STAT_idx in 1:2 ) {
+      vec_stat_files <- c("./R_data_saved/list_TC_stats_min_bin_PAC_OS_S1_M60_50km_min7.Robj","./R_data_saved/list_TC_stats_min_bin_PAC_OS_S1_M60_50km_min7_46246.Robj","./R_data_saved/list_TC_stats_min_bin_PAC_OS_S123_M13_50km_min7.Robj")
+      for ( STAT_idx in 1:3 ) {
          load(vec_stat_files[STAT_idx])
          for ( S_idx in c(Sidx,4) ) {
             mat_TC_stats_temp <- matrix(NA,nrow=4,ncol=2)
             mat_TC_stats_temp[,1] <- sapply(X=1:length(list_TC_stats_min_bin),FUN=function(x) { FF <- list_TC_stats_min_bin[[x]]; FF$mean_e[which(FF$mission == vec_data_lab[S_idx])[1]] })
             mat_TC_stats_temp[,2] <- sapply(X=1:length(list_TC_stats_min_bin),FUN=function(x) { FF <- list_TC_stats_min_bin[[x]]; FF$sd_e[which(FF$mission == vec_data_lab[S_idx])[1]] })
 
-            points(min_bin_1Hz + vec_pt_offset[STAT_idx],mat_TC_stats_temp[,1],pch=vec_pch[S_idx],cex=vec_pt_cex[STAT_idx],col=vec_cols[S_idx])
+            points(min_bin_1Hz + mat_pt_offset[S_idx,STAT_idx],mat_TC_stats_temp[,1],pch=vec_pch[S_idx],cex=mat_pt_cex[S_idx,STAT_idx],col=vec_cols[S_idx])
             # https://stackoverflow.com/questions/13032777/scatter-plot-with-error-bars
-            arrows(min_bin_1Hz + vec_pt_offset[STAT_idx], mat_TC_stats_temp[,1]-mat_TC_stats_temp[,2], min_bin_1Hz + vec_pt_offset[STAT_idx], mat_TC_stats_temp[,1]+mat_TC_stats_temp[,2], length=0.05, angle=90, code=3, lwd=6)
-# Legend.
-            legend(x=0,y=0.3, legend=c(vec_data_lab[c(Sidx,4)],paste(vec_data_lab[c(Sidx,4)],"[inc 46246]")),pch=vec_pch[c(Sidx,4)],pt.cex=rep(vec_pt_cex,each=2),col=vec_cols[c(Sidx,4)],cex=pl_cex_leg)
+            arrows(min_bin_1Hz + mat_pt_offset[S_idx,STAT_idx], mat_TC_stats_temp[,1]-mat_TC_stats_temp[,2], min_bin_1Hz + mat_pt_offset[S_idx,STAT_idx], mat_TC_stats_temp[,1]+mat_TC_stats_temp[,2], length=0.05, angle=90, code=3, lwd=6)
          }
       }
+# Legend.
+#      legend(x=0,y=0.3, legend=c(vec_data_lab[c(Sidx,4)],paste(vec_data_lab[c(Sidx,4)],"[inc 46246]")),pch=vec_pch[c(Sidx,4)],pt.cex=rep(vec_pt_cex,each=2),col=vec_cols[c(Sidx,4)],cex=pl_cex_leg)
       dev.off()
       system(paste("okular",fig_radius_stats_file_name,"&> /dev/null &"))
    }
