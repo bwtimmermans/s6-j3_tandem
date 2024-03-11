@@ -20,8 +20,8 @@
 
    flag_buoy_bias_hist <- FALSE
 
-   flag_plot_tandem_anom <- TRUE
-   flag_tandem_anom_buoy <- TRUE
+   flag_plot_tandem_anom <- FALSE
+   flag_tandem_anom_trackID <- FALSE
 
    flag_plot_ggmap <- FALSE
 # Correlation (COR) or mean bias (BIAS).
@@ -48,7 +48,7 @@
 # 46085(4) bias gradient with latitude.
 # 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
-      Bidx_init <- 4
+      #Bidx_init <- 1:9
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -77,8 +77,8 @@
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
    #Bidx_init <- c(1:6,15:18,21:29,31,32,34)
 
-   Sidx <- c(1,2)
-   flag_tandem <- TRUE
+   Sidx <- c(1)
+   flag_tandem <- FALSE
    if ( flag_tandem ) {
       m_limit <- 13
    } else {
@@ -100,7 +100,7 @@
 #-------------------------------------------------------------------------------------------------#
 # PAC Offshore (active).
       fig_lab_region <- "OS"
-      b_idx_list <- 3:13
+      b_idx_list <- 5:13
 #-------------------------------------------------------------------------------------------------#
 # as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
 # Attach J3.
@@ -125,7 +125,8 @@
       detach()
 
 # Attach ERA5.
-      attach("./output/ERA5/buoy_array_PAC_OS_2020-2022.Robj")
+      #attach("./output/ERA5/buoy_array_PAC_OS_2020-2022.Robj")
+      attach("./output/ERA5/buoy_array_PAC_OS_2017-2022.Robj")
       mat_list_ERA5 <- list_buoy_data[[2]]
       detach()
    } else {
@@ -209,7 +210,9 @@
 
    array_radius_stats <- array(NA,dim=c(7,4,10))
    vec_buoy_radius <- c(100,75,60,50,45,40,35,30,25)
-   vec_buoy_radius <- c(100)
+   vec_buoy_radius <- c(100,75,60,50,45,40)
+   vec_buoy_radius <- c(50)
+
    list_df_reg_radius <- matrix(list(),nrow=length(vec_buoy_radius),ncol=3)
 
    for ( i_buoy_radius in 1:length(vec_buoy_radius) ) {
@@ -258,6 +261,10 @@
    array_list_bins_master <- array(list(),dim=c(60,3,length(Bidx)))
    list_B_vec_buoy_time_num <- list()
    list_B_vec_buoy_hs <- list()
+   #list_B_vec_buoy_ap <- list()
+   list_B_vec_ERA5_time_num <- list()
+   list_B_vec_ERA5_hs <- list()
+   list_B_vec_ERA5_hs_BILIN <- list()
    #list_B_vec_buoy_ap <- list()
 
    vec_B_active <- rep(TRUE,length(Bidx))
@@ -311,7 +318,8 @@
          vec_ERA5_ap <- c(vec_ERA5_ap,mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[3]][2,2,])
       }
 # Adjust time to common scale starting at 2020-12-01 00:00:00.
-      vec_ERA5_time_num <- vec_ERA5_time_num*3600 - 3155673600
+      list_B_vec_ERA5_time_num[[b_idx]] <- vec_ERA5_time_num <- vec_ERA5_time_num*3600 - 3155673600
+      list_B_vec_ERA5_hs[[b_idx]] <- vec_ERA5_hs
 
 # ERA5 bilinear interpolation
 # To do: timing information.
@@ -353,6 +361,7 @@
 
          vec_ERA5_hs_BILIN <- c( vec_ERA5_hs_BILIN,sapply( X=1:length(mat_list_ERA5[[i_month,ERA5_b_idx]][[5]][[1]][2,2,]), FUN=function(x,y,t) { 1/(0.5*0.5) * cbind(c(vec_X[2]-x),c(x-vec_X[1])) %*% cbind(mat_QX[t,],mat_QY[t,]) %*% rbind(c(vec_Y[2]-y),c(y-vec_Y[1])) },x=df_buoy_data$buoy_lon[ERA5_b_idx], y=df_buoy_data$buoy_lat[ERA5_b_idx] ) )
       }
+      list_B_vec_ERA5_hs_BILIN[[b_idx]] <- vec_ERA5_hs_BILIN
 
 #=================================================================================================#
 # Process satellite data.
@@ -819,15 +828,17 @@
       ux[which.max(tabulate(match(x, ux)))]
    }
 
-# Find indices for track IDs (monthly).
+# Find indices, bin # and time stamp, for each track ID, partitioned monthly.
    array_list_trackID <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_bins_trackID <- matrix(list(),nrow=3,ncol=length(Bidx))
+   mat_list_mean_time_trackID <- matrix(list(),nrow=3,ncol=length(Bidx))
 
 # Loop over (active) buoys.
    for (b_idx in (1:length(Bidx))[vec_B_active]) {
 
       mat_list_breaks_master <- list_B_mat_list_breaks_master[[b_idx]]
-      mat_list_Lvec_break_dist_min_idx <- list_B_mat_list_Lvec_break_dist_min_idx[[b_idx]]
+      mat_list_mean_time <- list_B_mat_list_mean_time[[b_idx]]
+      #mat_list_Lvec_break_dist_min_idx <- list_B_mat_list_Lvec_break_dist_min_idx[[b_idx]]
 
       array_scale_m_idx <- array(NA,dim=c(2,length(vec_unique_trackID),3))
 
@@ -835,18 +846,22 @@
 
          vec_unique_trackID <- unique(unlist(array_list_XXing[,S_idx,b_idx]))
 
-         mat_list_trackID <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
-         mat_list_bins_trackID_temp <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
+         mat_list_trackID                <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
+         mat_list_bins_trackID_temp      <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
+         mat_list_mean_time_trackID_temp <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
 
+# Loop over each track ID.
          for ( jj in 1:length(vec_unique_trackID) ) {
 # Loop over months.
             for ( m_idx in 1:m_limit ) {
-               mat_list_trackID[[m_idx,jj]] <- mat_list_breaks_master[[m_idx,S_idx]][which(array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj])]
-               mat_list_bins_trackID_temp[[m_idx,jj]] <- array_list_bins_master[[m_idx,S_idx,b_idx]][which(array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj])]
+               mat_list_trackID[[m_idx,jj]]                <- mat_list_breaks_master[[m_idx,S_idx]][which(array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj])]
+               mat_list_bins_trackID_temp[[m_idx,jj]]      <- array_list_bins_master[[m_idx,S_idx,b_idx]][which(array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj])]
+               mat_list_mean_time_trackID_temp[[m_idx,jj]] <- mat_list_mean_time[[m_idx,S_idx]][which(array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj])]
             }
          }
-         array_list_trackID[[S_idx,b_idx]] <- mat_list_trackID
-         mat_list_bins_trackID[[S_idx,b_idx]] <- mat_list_bins_trackID_temp
+         array_list_trackID[[S_idx,b_idx]]         <- mat_list_trackID
+         mat_list_bins_trackID[[S_idx,b_idx]]      <- mat_list_bins_trackID_temp
+         mat_list_mean_time_trackID[[S_idx,b_idx]] <- mat_list_mean_time_trackID_temp
       }
    }
 
@@ -855,6 +870,7 @@
    mat_list_trackID_hs_monthly <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_trackID_rms1 <- matrix(list(),nrow=3,ncol=length(Bidx))
 
+# Now assign Hs and rms values per bin. Average (mean) values are taken where mor than one obs lands in a single bin.
 # Loop over (active) buoys.
    for (b_idx in (1:length(Bidx))[vec_B_active]) {
       mat_list_1Hz_hs <- list_B_mat_list_1Hz_hs[[b_idx]]
@@ -893,11 +909,11 @@
 # sapply( X=1:length( unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ) ), FUN=function(x) { mean( mat_list_1Hz_hs[[.]][ which( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] == unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] )[x] ) } )
 # sapply(X=1:length( unique( mat_list_bins_trackID[[S_idx,b_idx]][[2,1]][[1]] ) ),FUN=function(x) { mean( mat_list_1Hz_hs[[2,S_idx]][mat_list_trackID[[2,1]][[1]]][ which( mat_list_bins_trackID[[S_idx,b_idx]][[2,1]][[1]] == unique( mat_list_bins_trackID[[S_idx,b_idx]][[2,1]][[1]] )[x] ) ] ) } )
 
-                     mat_trackID_hs_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
-                     mat_trackID_rms_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_rms_QC[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
+                     mat_trackID_hs_temp[ii, unique(mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]]) ] <- sapply( X=1:length( unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ) ), FUN=function(x) { mean( mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]][ which( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] == unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] )[x] ) ], na.rm=T ) } )
+                     mat_trackID_rms_temp[ii, unique(mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]]) ] <- sapply( X=1:length( unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ) ), FUN=function(x) { mean( mat_list_1Hz_rms_QC[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]][ which( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] == unique( mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] )[x] ) ], na.rm=T ) } )
 # Old code (broken).
-#                     mat_trackID_hs_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
-#                     mat_trackID_rms_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_rms_QC[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
+                     #mat_trackID_hs_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_hs[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
+                     #mat_trackID_rms_temp[ii, mat_list_bins_trackID[[S_idx,b_idx]][[m_idx,jj]][[ii]] ] <- mat_list_1Hz_rms_QC[[m_idx,S_idx]][mat_list_trackID[[m_idx,jj]][[ii]]]
                   }
                }
 # Aggregated Hs data (over months) stored here.
@@ -928,37 +944,42 @@
    mat_list_time_diff_J3B <- matrix(list(),nrow=60,ncol=3)
    mat_list_time_diff_J3ERA <- matrix(list(),nrow=60,ncol=3)
    Lmat_list_slot_J3B <- vector(mode = "list",length = 60)
-   Lmat_list_slot_J3B_TEST <- vector(mode = "list",length = 60)
+   #Lmat_list_slot_J3B_TEST <- vector(mode = "list",length = 60)
    Lmat_list_slot_J3ERA <- vector(mode = "list",length = 60)
 # AD = all data.
    mat_list_buoy_hs_coloc_AD <- matrix(list(),nrow=3,ncol=length(Bidx))
-   mat_list_buoy_hs_coloc_AD_TEST <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
-   mat_list_ERA5_hs_coloc_AD <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
-   mat_list_ERA5_hs_BILIN_coloc_AD <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
+   #mat_list_buoy_hs_coloc_AD_TEST <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
+   mat_list_ERA5_hs_coloc_AD <- matrix(list(),nrow=3,ncol=length(Bidx))
+   mat_list_ERA5_hs_BILIN_coloc_AD <- matrix(list(),nrow=3,ncol=length(Bidx))
 
 # Loop over (active) buoys.
    for (b_idx in (1:length(Bidx))[vec_B_active]) {
       buoy_idx <- b_idx_list[Bidx[b_idx]]
       vec_buoy_time_num <- list_B_vec_buoy_time_num[[b_idx]]
+      vec_ERA5_time_num <- list_B_vec_ERA5_time_num[[b_idx]]
       vec_unique_trackID <- unique(unlist(array_list_XXing[,,b_idx])) 
       mat_list_mean_time <- list_B_mat_list_mean_time[[b_idx]]
       vec_buoy_hs <- list_B_vec_buoy_hs[[b_idx]]
       #vec_buoy_ap <- list_B_vec_buoy_ap[[b_idx]]
+      vec_ERA5_hs <- list_B_vec_ERA5_hs[[b_idx]]
+      vec_ERA5_hs_BILIN <- list_B_vec_ERA5_hs_BILIN[[b_idx]]
 
       for (S_idx in Sidx) {
          vec_unique_trackID <- unique(unlist(array_list_XXing[,S_idx,b_idx]))
          mat_list_buoy_hs_coloc_AD_temp <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
+         mat_list_ERA5_hs_coloc_AD_temp <- matrix(list(),nrow=60,ncol=length(vec_unique_trackID))
 
          for ( m_idx in 1:m_limit ) {
             #list_buoy_data1 <- list(mat_list_J3[[m_idx,buoy_idx]],mat_list_S6_LRM[[m_idx,buoy_idx]],mat_list_S6_SAR[[m_idx,buoy_idx]])
             #mat_list_mean_time1[[m_idx,S_idx]] <- sapply( X=1:length(mat_list_breaks_master[[m_idx,S_idx]]), FUN=function(x) { floor( mean( list_buoy_data1[[S_idx]][[4]][ mat_list_Lvec_buoy_samp[[m_idx,S_idx]] ][ mat_list_breaks_master[[m_idx,S_idx]][[x]] ] ) ) } )
 
 # Find buoy time that matches J3 block mean time.
+# For buoys that sample for than 1 / hour, ensure the smallest time separation is selected.
             Lmat_list_slot_J3B[[m_idx]] <- sapply( X=1:length(mat_list_mean_time[[m_idx,S_idx]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_buoy_time_num) ) } )
-            Lmat_list_slot_J3B_TEST[[m_idx]] <- sapply( X=1:length(mat_list_mean_time[[m_idx,S_idx]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,S_idx]][1] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,S_idx]][1] - vec_buoy_time_num) ) } )
+            #Lmat_list_slot_J3B_TEST[[m_idx]] <- sapply( X=1:length(mat_list_mean_time[[m_idx,S_idx]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,S_idx]][1] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,S_idx]][1] - vec_buoy_time_num) ) } )
 # Find absolute time difference.
-            mat_list_time_diff_J3B[[m_idx,S_idx]] <- sapply( X=1:length(mat_list_mean_time[[m_idx,S_idx]]),FUN=function(x) { min( abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_buoy_time_num) ) } )
-            mat_list_time_diff_J3B[[m_idx,S_idx]][ sapply( X=1:dim(Lmat_list_slot_J3B[[m_idx]])[2], FUN=function(x) { sum( Lmat_list_slot_J3B[[m_idx]][,x] ) == 0 } ) ] <- NA
+#            mat_list_time_diff_J3B[[m_idx,S_idx]] <- sapply( X=1:length(mat_list_mean_time[[m_idx,S_idx]]),FUN=function(x) { min( abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_buoy_time_num) ) } )
+#            mat_list_time_diff_J3B[[m_idx,S_idx]][ sapply( X=1:dim(Lmat_list_slot_J3B[[m_idx]])[2], FUN=function(x) { sum( Lmat_list_slot_J3B[[m_idx]][,x] ) == 0 } ) ] <- NA
 # Find buoy Hs and ap for all J3-B colocs.
             vec_buoy_hs_coloc <- vec_buoy_ap_coloc <- rep(NA,length(mat_list_mean_time[[m_idx,S_idx]]))
             vec_buoy_hs_coloc[which(Lmat_list_slot_J3B[[m_idx]],arr.ind=T)[,2]] <- vec_buoy_hs[which(Lmat_list_slot_J3B[[m_idx]],arr.ind=T)[,1]]
@@ -966,8 +987,14 @@
 
             #vec_buoy_ap_coloc[which(Lmat_list_slot_J3B[[m_idx]],arr.ind=T)[,2]] <- vec_buoy_ap[which(Lmat_list_slot_J3B[[m_idx]],arr.ind=T)[,1]]
             #vec_buoy_ap_coloc_ALL <- c(vec_buoy_ap_coloc_ALL,vec_buoy_ap_coloc)
-# Find buoy Hs and ap for all J3-B colocs, separated by trackID.
+
+# Find buoy time that matches J3 block mean time.
+# For buoys that sample for than 1 / hour.
+            Lmat_list_slot_J3ERA[[m_idx]] <- sapply( X=1:length(mat_list_mean_time[[m_idx,S_idx]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,S_idx]][x] - vec_ERA5_time_num) < 1800 } )
+
+# Find buoy and ERA5 Hs and ap for all J3-B colocs, separated by trackID.
             for ( jj in 1:length(vec_unique_trackID) ) {
+# Buoy.
                vec_hs_temp <- rep(NA,sum(array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj]))
                if ( length(vec_hs_temp) > 0 ) {
                   mat_hs_idx_temp <- which( Lmat_list_slot_J3B[[m_idx]][,array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj]],arr.ind=T )
@@ -978,6 +1005,19 @@
                   } else {
                      vec_hs_temp[mat_hs_idx_temp[,2]] <- vec_buoy_hs[mat_hs_idx_temp[,1]]
                      mat_list_buoy_hs_coloc_AD_temp[[m_idx,jj]] <- vec_hs_temp
+                  }
+               }
+# ERA5.
+               vec_hs_temp <- rep(NA,sum(array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj]))
+               if ( length(vec_hs_temp) > 0 ) {
+                  mat_hs_idx_temp <- which( Lmat_list_slot_J3ERA[[m_idx]][,array_list_XXing[[m_idx,S_idx,b_idx]] == vec_unique_trackID[jj]],arr.ind=T )
+                  if ( length(mat_hs_idx_temp) == 1 ) {
+                     mat_list_ERA5_hs_coloc_AD_temp[[m_idx,jj]] <- vec_ERA5_hs[mat_hs_idx_temp]
+                  } else if ( length(mat_hs_idx_temp) == 0 ) {
+                     mat_list_ERA5_hs_coloc_AD_temp[[m_idx,jj]] <- vec_hs_temp
+                  } else {
+                     vec_hs_temp[mat_hs_idx_temp[,2]] <- vec_ERA5_hs[mat_hs_idx_temp[,1]]
+                     mat_list_ERA5_hs_coloc_AD_temp[[m_idx,jj]] <- vec_hs_temp
                   }
                }
 
@@ -1002,6 +1042,7 @@
 #            }
          }
          mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]] <- mat_list_buoy_hs_coloc_AD_temp
+         mat_list_ERA5_hs_coloc_AD[[S_idx,b_idx]] <- mat_list_ERA5_hs_coloc_AD_temp
       }
    }
 
@@ -1273,10 +1314,14 @@
    mat_list_trackID_hs_med_adapt <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_trackID_hs_min1 <- matrix(list(),nrow=13,ncol=length(Bidx))
    mat_list_trackID_hs_min3 <- matrix(list(),nrow=13,ncol=length(Bidx))
+   mat_list_trackID_hs_min5 <- matrix(list(),nrow=13,ncol=length(Bidx))
+   mat_list_trackID_hs_min7 <- matrix(list(),nrow=13,ncol=length(Bidx))
 
    mat_list_trackID_hs_med_1Hz_count <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_trackID_hs_med_adapt_1Hz_count <- matrix(list(),nrow=3,ncol=length(Bidx))
    mat_list_trackID_hs_min3_1Hz_count <- matrix(list(),nrow=3,ncol=length(Bidx))
+   mat_list_trackID_hs_min5_1Hz_count <- matrix(list(),nrow=3,ncol=length(Bidx))
+   mat_list_trackID_hs_min7_1Hz_count <- matrix(list(),nrow=3,ncol=length(Bidx))
 
    mat_list_trackID_rms_med <- matrix(list(),nrow=3,ncol=length(Bidx))
 
@@ -1296,10 +1341,14 @@
          list_trackID_hs_med_adapt <- vector(mode = "list",length = length(vec_unique_trackID))
          list_trackID_hs_min1 <- vector(mode = "list",length = length(vec_unique_trackID))
          list_trackID_hs_min3 <- vector(mode = "list",length = length(vec_unique_trackID))
+         list_trackID_hs_min5 <- vector(mode = "list",length = length(vec_unique_trackID))
+         list_trackID_hs_min7 <- vector(mode = "list",length = length(vec_unique_trackID))
 
          list_trackID_hs_med_1Hz_count <- vector(mode = "list",length = length(vec_unique_trackID))
          list_trackID_hs_med_adapt_1Hz_count <- vector(mode = "list",length = length(vec_unique_trackID))
          list_trackID_hs_min3_1Hz_count <- vector(mode = "list",length = length(vec_unique_trackID))
+         list_trackID_hs_min5_1Hz_count <- vector(mode = "list",length = length(vec_unique_trackID))
+         list_trackID_hs_min7_1Hz_count <- vector(mode = "list",length = length(vec_unique_trackID))
 
          list_trackID_rms_med <- vector(mode = "list",length = length(vec_unique_trackID))
 
@@ -1323,6 +1372,10 @@
 
                   list_trackID_hs_min3[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { median(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-2),rep(TRUE,3),rep(FALSE,(length(vec_dist_bins)/2)-2))],na.rm=T) })
                   list_trackID_hs_min3_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-2),rep(TRUE,3),rep(FALSE,(length(vec_dist_bins)/2)-2))])) })
+                  list_trackID_hs_min5[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { median(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-3),rep(TRUE,5),rep(FALSE,(length(vec_dist_bins)/2)-3))],na.rm=T) })
+                  list_trackID_hs_min5_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-3),rep(TRUE,5),rep(FALSE,(length(vec_dist_bins)/2)-3))])) })
+                  list_trackID_hs_min7[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { median(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-4),rep(TRUE,7),rep(FALSE,(length(vec_dist_bins)/2)-4))],na.rm=T) })
+                  list_trackID_hs_min7_1Hz_count[[jj]] <- sapply(X=1:dim(list_trackID_hs[[jj]])[1],FUN=function(x) { sum(!is.na(list_trackID_hs[[jj]][x,c(rep(FALSE,(length(vec_dist_bins)/2)-4),rep(TRUE,7),rep(FALSE,(length(vec_dist_bins)/2)-4))])) })
                }
 #         if ( !is.null(mat_list_trackID_hs[[m_idx,jj]]) ) {
 #            mat_list_trackID_hs_med[[m_idx,jj]] <- sapply(X=1:dim(mat_list_trackID_hs[[m_idx,jj]])[1],FUN=function(x) { median(mat_list_trackID_hs[[m_idx,jj]][x,],na.rm=T) })
@@ -1336,10 +1389,14 @@
          mat_list_trackID_hs_med_adapt[[S_idx,b_idx]] <- list_trackID_hs_med_adapt
          mat_list_trackID_hs_min1[[S_idx,b_idx]] <- list_trackID_hs_min1
          mat_list_trackID_hs_min3[[S_idx,b_idx]] <- list_trackID_hs_min3
+         mat_list_trackID_hs_min5[[S_idx,b_idx]] <- list_trackID_hs_min5
+         mat_list_trackID_hs_min7[[S_idx,b_idx]] <- list_trackID_hs_min7
 
          mat_list_trackID_hs_med_1Hz_count[[S_idx,b_idx]] <- list_trackID_hs_med_1Hz_count
          mat_list_trackID_hs_med_adapt_1Hz_count[[S_idx,b_idx]] <- list_trackID_hs_med_adapt_1Hz_count
          mat_list_trackID_hs_min3_1Hz_count[[S_idx,b_idx]] <- list_trackID_hs_min3_1Hz_count
+         mat_list_trackID_hs_min5_1Hz_count[[S_idx,b_idx]] <- list_trackID_hs_min5_1Hz_count
+         mat_list_trackID_hs_min7_1Hz_count[[S_idx,b_idx]] <- list_trackID_hs_min7_1Hz_count
 
          mat_list_trackID_rms_med[[S_idx,b_idx]] <- list_trackID_rms_med
       }
@@ -1357,21 +1414,28 @@
    for (S_idx in Sidx) {
 # Refactor the buoy data for trackID (to match the sat data).
       #S_idx <- Sidx[1]
-      mat_list_buoy_hs_coloc_trackID <- matrix(list(),nrow=3,ncol=length(Bidx))
+      mat_list_buoy_hs_coloc_trackID <- mat_list_ERA5_hs_coloc_trackID <- matrix(list(),nrow=3,ncol=length(Bidx))
       for (b_idx in (1:length(Bidx))[vec_B_active]) { BB <- mat_list_buoy_hs_coloc_AD[[S_idx,b_idx]]; list_BB <- list(); for ( mm in 1:dim(BB)[2] ) { list_BB[[mm]] <- unlist(BB[,mm]) }; mat_list_buoy_hs_coloc_trackID[[S_idx,b_idx]] <- list_BB }
+      for (b_idx in (1:length(Bidx))[vec_B_active]) { BB <- mat_list_ERA5_hs_coloc_AD[[S_idx,b_idx]]; list_BB <- list(); for ( mm in 1:dim(BB)[2] ) { list_BB[[mm]] <- unlist(BB[,mm]) }; mat_list_ERA5_hs_coloc_trackID[[S_idx,b_idx]] <- list_BB }
 
 # Plotting.
 # Correlation and regression.
       #df_reg <- data.frame(buoy_hs=unlist(mat_list_buoy_hs_coloc_AD[1,][,1]),sat_hs=unlist(mat_list_trackID_hs_med[[1,1]][[1]]))
       df_reg <- data.frame(
                            buoy_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]) })),
+                           ERA5_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_ERA5_hs_coloc_trackID[[S_idx,x]]) })),
+                           sat_mean_time=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_mean_time_trackID[[S_idx,x]]) })),
                            sat_hs=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med[[S_idx,x]]) })),
                            sat_hs_adapt=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt[[S_idx,x]]) })),
                            sat_hs_min1=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min1[[S_idx,x]]) })),
                            sat_hs_min3=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3[[S_idx,x]]) })),
+                           sat_hs_min5=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min5[[S_idx,x]]) })),
+                           sat_hs_min7=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min7[[S_idx,x]]) })),
                            sat_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_1Hz_count[[S_idx,x]]) })),
                            sat_adapt_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_med_adapt_1Hz_count[[S_idx,x]]) })),
                            sat_min3_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min3_1Hz_count[[S_idx,x]]) })),
+                           sat_min5_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min5_1Hz_count[[S_idx,x]]) })),
+                           sat_min7_1Hz_count=unlist(lapply(X=1:length(Bidx),FUN=function(x) { unlist(mat_list_trackID_hs_min7_1Hz_count[[S_idx,x]]) })),
                            buoy_lab=unlist(lapply(X=1:length(Bidx),FUN=function(x) { rep(buoy_list[b_idx_list[Bidx[x]]],length(unlist(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]))) })),
                            track_dist=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
 							 lapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
@@ -1385,6 +1449,8 @@
       df_reg$sat_hs_adapt[df_reg$sat_hs_adapt < 0.25] <- NA
       df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.75] <- NA
       df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.75] <- NA
+      df_reg$sat_hs_min5[df_reg$sat_hs_min5 < 0.75] <- NA
+      df_reg$sat_hs_min7[df_reg$sat_hs_min7 < 0.75] <- NA
 
 # Save df_reg into a master list.
       list_df_reg_radius[[i_buoy_radius,S_idx]] <- df_reg
@@ -1524,7 +1590,7 @@
 
 #=================================================================================================#
    if ( flag_radius_plot & (i_buoy_radius == length(vec_buoy_radius) ) ) {
-# Generate stats directly from df_regi (N and N[1 Hz]).
+# Generate stats directly from df_reg (N and N[1 Hz]).
 # Lvec_temp <- !is.na(list_df_reg_radius[[1]]$buoy_hs) & !is.na(list_df_reg_radius[[1]]$sat_hs)
 # sum(Lvec_temp)
 # sum( list_df_reg_radius[[1]]$sat_1Hz_count[Lvec_temp] )
@@ -1687,73 +1753,42 @@
 # Algorithm to match up J3, tandem data but using the buoy measurements in df_reg.
 # Remove NAs.
    if ( flag_plot_tandem_anom ) {
-# Use data from buoy match-ups (excludes some data due to absence of buoy data).
-      if ( flag_tandem_anom_buoy ) {
-
-         lab_pairing <- "BUOYPAIR"
-         flag_S6SAR <- FALSE
-         flag_S6SAR_correction1 <- TRUE
+# Setup for S6 LRM or S6 SAR.
+      flag_S6SAR <- FALSE
+      flag_S6SAR_correction1 <- FALSE
+      flag_J3BUOY <- FALSE
    
-         tandem_idx <- c(1,2)
-         if ( tandem_idx[2] == 3 ) {
-            flag_S6SAR <- TRUE
-         }
+      tandem_idx <- c(1,3)
+      if ( tandem_idx[2] == 3 ) {
+         flag_S6SAR <- TRUE
+      } else if ( tandem_idx[2] == 4 ) {
+         flag_J3BUOY <- TRUE
+      }
+# Use data from buoy match-ups (excludes some data due to absence of buoy data).
+      if ( flag_tandem_anom_trackID ) {
+
+         lab_pairing <- "TRACKID1"
+   
          df_reg_J3 <- list_df_reg_radius[[1,tandem_idx[1]]]
          df_reg_S6LRM <- list_df_reg_radius[[1,tandem_idx[2]]]
-         mat_match_idx <- matrix(NA,nrow=length(df_reg_J3$buoy_hs),2)
-         if ( any(df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10],na.rm=T) ) {
-            mat_match_idx[1,1] <- 1
-            mat_match_idx[1,2] <- which( df_reg_J3$buoy_hs[1] == df_reg_S6LRM$buoy_hs[1:10] )
-         } else if ( any(df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10],na.rm=T) ) {
-            mat_match_idx[1,1] <- which( df_reg_S6LRM$buoy_hs[1] == df_reg_J3$buoy_hs[1:10] )
-            mat_match_idx[1,2] <- 1
-         } else {
-            print(paste("ERROR!"))
-         }
-   
-         i_index <- 2
-         gap_count <- 0
-         for ( match_idx in (1+mat_match_idx[1,1]):length(df_reg_J3$buoy_hs) ) {
-         #for ( match_idx in (1+mat_match_idx[1,1]):200 ) {
-            if ( !is.na(df_reg_J3$buoy_hs[match_idx]) ) {
-               if ( gap_count > 0 ) {
-                  #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ]
-                  Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ]
-                  if ( any(Lvec_test,na.rm=T) ) {
-                     #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (match_idx-mat_match_idx[i_index-1,2]-3)+(mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2)) ] ) + mat_match_idx[i_index-1,2] - 1 + (match_idx-mat_match_idx[i_index-1,2]-3)
-                     mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1+gap_count) ] ) + mat_match_idx[i_index-1,2]
-                     mat_match_idx[i_index,1] <- match_idx
-                     i_index <- i_index + 1
-                     gap_count <- 0
-                  } else {
-                     gap_count <- gap_count + 1
-                  }
-               } else {
-                  #Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ]
-                  Lvec_test <- df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]+1 ]
-                  if ( any(Lvec_test,na.rm=T) ) {
-                     #mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ mat_match_idx[i_index-1,2]:(mat_match_idx[i_index-1,2]+2) ] ) + mat_match_idx[i_index-1,2] - 1
-                     mat_match_idx[i_index,2] <- which( df_reg_J3$buoy_hs[match_idx] == df_reg_S6LRM$buoy_hs[ (mat_match_idx[i_index-1,2]+1):(mat_match_idx[i_index-1,2]+1) ] ) + mat_match_idx[i_index-1,2]
-                     mat_match_idx[i_index,1] <- match_idx
-                     i_index <- i_index + 1
-                     gap_count <- 0
-                  } else {
-                     gap_count <- gap_count + 1
-                  }
-               }
-            } else {
-               gap_count <- gap_count + 1
-            }
-         }
+
+         mat_list_slot_J3B <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) ) } )
+
+         mat_list_slot_J3B <- sapply( X=1:length(df_reg_J3$sat_mean_time),FUN=function(x) { df_reg_S6LRM$sat_mean_time - df_reg_J3$sat_mean_time[x] < 35 & df_reg_S6LRM$sat_mean_time - df_reg_J3$sat_mean_time[x]  > 0 } ) 
+         vec_time_match <- apply(X=mat_list_slot_J3B,MAR=2,FUN=function(x) { if ( any(x) ) { DD <- which(x) } else { DD <- NA } })
+         mat_time_match <- cbind(1:length(vec_time_match),vec_time_match)
+         mat_time_match <- mat_time_match[!is.na(mat_time_match[,2]),]
+         #X11()
+         #plot(df_reg_J3$sat_hs[mat_time_match[,1]],df_reg_S6LRM$sat_hs[mat_time_match[,2]])
+
 # Create data frame for plotting.
          df_plot_tandem <- data.frame(
-				   J3_buoy_hs=df_reg_J3$buoy_hs[mat_match_idx[,1]],
-				   J3_sat_hs=df_reg_J3$sat_hs[mat_match_idx[,1]],
-				   S6_sat_hs=df_reg_S6LRM$sat_hs[mat_match_idx[,2]] )
+				   J3_buoy_hs=df_reg_J3$buoy_hs[mat_time_match[,1]],
+				   J3_sat_hs=df_reg_J3$sat_hs[mat_time_match[,1]],
+				   S6_sat_hs=df_reg_S6LRM$sat_hs[mat_time_match[,2]] )
 
 # Specify J3 & S6 data.
          vec_sat1 <- df_plot_tandem$J3_sat_hs
-         #vec_sat2 <- df_plot_tandem$S6_sat_hs
          vec_sat2 <- df_plot_tandem$S6_sat_hs
 # Get paired data.
          vec_sat1_paired <- vec_sat1[!is.na(vec_sat1) & !is.na(vec_sat2)]
@@ -1769,55 +1804,80 @@
 # Direct calculation of median (from older code).
          lab_pairing <- "DIRECTPAIR"
 
-         flag_S6SAR <- FALSE
-         flag_S6SAR_correction1 <- TRUE
-   
-         tandem_idx <- c(1,2)
-         if ( tandem_idx[2] == 3 ) {
-            flag_S6SAR <- TRUE
-         }
 # Calculate medians (more tracks for J3 than S6 due to missing data!).
+         vec_buoy_hs_coloc_ALL1 <- NULL
+         vec_Q50_J3_ALL_BUOY <- NULL
          vec_Q50_J3_ALL <- NULL
          vec_Q50_S6LRM_ALL <- NULL
+         vec_Q50_S6SAR_ALL <- NULL
          Lvec_qual_numval_J3_ALL <- NULL
 
-      for (b_idx in 1:length(Bidx)) {
-      #for (b_idx in 1) {
-         mat_list_1Hz_hs <- list_B_mat_list_1Hz_hs[[b_idx]]
-         mat_list_1Hz_numval <- list_B_mat_list_1Hz_numval[[b_idx]]
-         mat_list_breaks_master <- list_B_mat_list_breaks_master[[b_idx]]
-         mat_list_mean_time <- list_B_mat_list_mean_time[[b_idx]]
+         for (b_idx in 1:length(Bidx)) {
+         #for (b_idx in 1) {
+            mat_list_1Hz_hs <- list_B_mat_list_1Hz_hs[[b_idx]]
+            mat_list_1Hz_numval <- list_B_mat_list_1Hz_numval[[b_idx]]
+            mat_list_breaks_master <- list_B_mat_list_breaks_master[[b_idx]]
+            mat_list_mean_time <- list_B_mat_list_mean_time[[b_idx]]
+            vec_buoy_time_num <- list_B_vec_buoy_time_num[[b_idx]]
+            vec_buoy_hs <- list_B_vec_buoy_hs[[b_idx]]
 
-         for ( m_idx in 1:m_limit ) {
+            for ( m_idx in 1:m_limit ) {
 # Identify matching time slots across missions.
-            mat_slot_J3S6L <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - mat_list_mean_time[[m_idx,2]]) < 40 } )
-# J3.
-            #print(paste("J3 Month:",m_idx,"# tracks:",length(mat_list_breaks_master[[m_idx,1]])))
-            vec_Q50_J3 <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] , na.rm=T ) } )
-            vec_Q50_J3_ALL <- c(vec_Q50_J3_ALL,vec_Q50_J3[apply(X=mat_slot_J3S6L,MAR=2,FUN=any)])
-# J3 QC.
-            Lvec_qual_numval_J3 <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { any( mat_list_1Hz_numval[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] < 9 ) } )
-            #Lvec_qual_numval_J3 <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { any( list_buoy_data1[[1]][[8]][ list_Lvec_buoy_samp[[1]] ][ list_breaks[[1]][[x]] ] < 9 ) } )
-            Lvec_qual_numval_J3_ALL <- c(Lvec_qual_numval_J3_ALL,Lvec_qual_numval_J3[apply(X=mat_slot_J3S6L,MAR=2,FUN=any)])
+# Buoys.
+               #mat_slot_J3B <- sapply( X=1:length(list_mean_time[[1]]),FUN=function(x) { abs(list_mean_time[[1]][x] - vec_buoy_time_num) < 1800 } )
+               mat_list_slot_J3B <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) ) } )
+
+               vec_buoy_hs_coloc <- rep(NA,length(mat_list_mean_time[[m_idx,1]]))
+               vec_buoy_hs_coloc[which(mat_list_slot_J3B,arr.ind=T)[,2]] <- vec_buoy_hs[which(mat_list_slot_J3B,arr.ind=T)[,1]]
+               vec_buoy_hs_coloc_ALL1 <- c(vec_buoy_hs_coloc_ALL1,vec_buoy_hs_coloc)
+
+               vec_Q50_J3_BUOY <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] , na.rm=T ) } )
+               vec_Q50_J3_ALL_BUOY <- c(vec_Q50_J3_ALL_BUOY,vec_Q50_J3_BUOY[apply(X=mat_list_slot_J3B,MAR=2,FUN=any)])
 # S6 LRM.
-            #print(paste("S6 Month:",m_idx,"# tracks:",length(mat_list_breaks_master[[m_idx,2]])))
-            #print("")
-            vec_Q50_S6LRM <- sapply( X=1:length(mat_list_breaks_master[[m_idx,2]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,2]][ mat_list_breaks_master[[m_idx,2]][[x]] ] , na.rm=T ) } )
-            vec_Q50_S6LRM_ALL <- c(vec_Q50_S6LRM_ALL,vec_Q50_S6LRM[apply(X=mat_slot_J3S6L,MAR=1,FUN=any)])
-         }
+               if ( any(Sidx == 2) ) {
+                  mat_slot_J3S6L <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - mat_list_mean_time[[m_idx,2]]) < 40 } )
+# J3.
+                  vec_Q50_J3 <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] , na.rm=T ) } )
+                  vec_Q50_J3_ALL <- c(vec_Q50_J3_ALL,vec_Q50_J3[apply(X=mat_slot_J3S6L,MAR=2,FUN=any)])
+
+                  vec_Q50_S6LRM <- sapply( X=1:length(mat_list_breaks_master[[m_idx,2]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,2]][ mat_list_breaks_master[[m_idx,2]][[x]] ] , na.rm=T ) } )
+                  vec_Q50_S6LRM_ALL <- c(vec_Q50_S6LRM_ALL,vec_Q50_S6LRM[apply(X=mat_slot_J3S6L,MAR=1,FUN=any)])
+# J3 QC.
+#               Lvec_qual_numval_J3 <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { any( mat_list_1Hz_numval[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] < 9 ) } )
+#               Lvec_qual_numval_J3_ALL <- c(Lvec_qual_numval_J3_ALL,Lvec_qual_numval_J3[apply(X=mat_slot_J3S6L,MAR=2,FUN=any)])
+	       }
+# S6 SAR.
+               if ( any(Sidx == 3) ) {
+                  mat_slot_J3S6H <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - mat_list_mean_time[[m_idx,3]]) < 40 } )
+# J3.
+                  vec_Q50_J3 <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] , na.rm=T ) } )
+                  vec_Q50_J3_ALL <- c(vec_Q50_J3_ALL,vec_Q50_J3[apply(X=mat_slot_J3S6H,MAR=2,FUN=any)])
+
+                  vec_Q50_S6SAR <- sapply( X=1:length(mat_list_breaks_master[[m_idx,3]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,3]][ mat_list_breaks_master[[m_idx,3]][[x]] ] , na.rm=T ) } )
+                  vec_Q50_S6SAR_ALL <- c(vec_Q50_S6SAR_ALL,vec_Q50_S6SAR[apply(X=mat_slot_J3S6H,MAR=1,FUN=any)])
+               }
+            }
 # Set Get paired data.
-         vec_sat1_paired <- vec_Q50_J3_ALL
-         vec_sat2_paired <- vec_Q50_S6LRM_ALL
+            if ( tandem_idx[2] == 2 ) {
+               vec_sat1_paired <- vec_Q50_J3_ALL
+               vec_sat2_paired <- vec_Q50_S6LRM_ALL
+	    } else if ( tandem_idx[2] == 3 ) {
+               vec_sat1_paired <- vec_Q50_J3_ALL
+               vec_sat2_paired <- vec_Q50_S6SAR_ALL
+            } else if ( tandem_idx[2] == 4 ) {
+               vec_sat1_paired <- vec_Q50_J3_ALL_BUOY
+               vec_sat2_paired <- vec_buoy_hs_coloc_ALL1[!is.na(vec_buoy_hs_coloc_ALL1)]
+            }
 # Old QC scheme.
-         vec_sat1_paired <- vec_Q50_J3_ALL[!Lvec_qual_numval_J3_ALL]
-         vec_sat2_paired <- vec_Q50_S6LRM_ALL[!Lvec_qual_numval_J3_ALL]
-         vec_data_diff <- vec_sat1_paired-vec_sat2_paired
+            #vec_sat1_paired <- vec_Q50_J3_ALL[!Lvec_qual_numval_J3_ALL]
+            #vec_sat2_paired <- vec_Q50_S6LRM_ALL[!Lvec_qual_numval_J3_ALL]
+            vec_data_diff <- vec_sat1_paired-vec_sat2_paired
 # Create initial data frame for plotting.
-         df_plot_tandem <- data.frame(
+            df_plot_tandem <- data.frame(
 				   J3_sat_hs=vec_sat1_paired,
 				   S6_sat_hs=vec_sat2_paired )
 
-      }
+         }
       }
 
 # Debug.
@@ -1847,9 +1907,11 @@
 # Model.
          lm_J3mS6SAR = lm(J3_sat_hs ~ S6_sat_hs + I(S6_sat_hs^(1/2)), data=df_plot_tandem)
          #vec_hs_QC <- predict.lm(object=lm_J3mS6SAR,newdata=data.frame(S6SAR=vec_hs))
-         vec_data_diff <- lm_J3mS6SAR$residuals
-         vec_sat2_paired <- lm_J3mS6SAR$fitted.values
-         vec_sat2_paired[abs(lm_J3mS6SAR$residuals) > 3*sqrt(var(lm_J3mS6SAR$residuals))] <- NA
+         Lvec_hs_outlier <- abs(lm_J3mS6SAR$residuals) > 3*sqrt(var(lm_J3mS6SAR$residuals))
+
+         vec_data_diff <- lm_J3mS6SAR$residuals[!Lvec_hs_outlier]
+         vec_sat2_paired <- lm_J3mS6SAR$fitted.values[!Lvec_hs_outlier]
+         vec_sat1_paired <- vec_sat1_paired[!Lvec_hs_outlier]
 # Plot labels.
          plot_y_lab <- paste("LM[J3 ~ S6 HR] Residuals")
          plot_title_lab <- paste0("Hs anomaly, region ",str_region)
@@ -1858,6 +1920,10 @@
          plot_title_lab <- paste0("Hs anomaly, region ",str_region)
          plot_y_lab <- expression("J3" - "S6 HR (m)")
          file_name_lab <- "S6_SAR"
+      } else if ( flag_J3BUOY ) {
+         plot_title_lab <- paste0("Hs anomaly, region ",str_region)
+         plot_y_lab <- expression("J3" - "Buoy (m)")
+         file_name_lab <- "BUOY"
       } else {
          plot_title_lab <- paste0("Hs anomaly, region ",str_region)
          plot_y_lab <- expression("J3" - "S6 LR (m)")
@@ -1872,7 +1938,7 @@
       hs_rmsd <- sqrt( mean( ( df_plot_tandem1$vec_J3 - df_plot_tandem1$vec_data )^2 ,na.rm=T ) )
 # RMSE
       if ( flag_S6SAR & flag_S6SAR_correction1 ) {
-         hs_rmse <- sqrt(mean(lm_J3mS6SAR$residuals^2))
+         hs_rmse <- sqrt(mean(lm_J3mS6SAR$residuals[!Lvec_hs_outlier]^2))
       } else {
          hs_rmse <- sqrt(mean(lm_hs$residuals^2))
       }
@@ -1886,7 +1952,7 @@
 # https://r-graph-gallery.com/2d-density-plot-with-ggplot2
 # https://stats.stackexchange.com/questions/12392/how-to-compare-two-datasets-with-q-q-plot-using-ggplot2
       require(ggplot2)
-      fig_scatter_filename <- paste0("./figures/test_sampling3/OS/ggplot_scatter_anomaly_J3-",file_name_lab,"_",lab_pairing,".png")
+      fig_scatter_filename <- paste0("./figures/test_sampling3/OS/ggplot_scatter_anomaly_J3-",file_name_lab,"_",lab_pairing,"1.png")
 # Data for Q-Q plot.
       #qq_data <- as.data.frame(qqplot(df_plot_tandem$J3_sat_hs, df_plot_tandem$S6_sat_hs, plot.it=FALSE))
 
