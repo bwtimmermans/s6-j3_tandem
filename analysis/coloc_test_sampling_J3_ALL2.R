@@ -20,12 +20,13 @@
 
    flag_buoy_bias_hist <- FALSE
 
-   flag_plot_tandem_anom <- FALSE
+# ggplot.
+   flag_plot_tandem_anom <- TRUE
    flag_tandem_anom_trackID <- FALSE
 
    flag_plot_ggmap <- FALSE
 # Correlation (COR) or mean bias (BIAS).
-   flag_plot_ggmap_COR <- FALSE
+   flag_plot_ggmap_COR <- TRUE
 
 # Sea state sampling by wave period.
    flag_period_thresh <- FALSE
@@ -48,7 +49,7 @@
 # 46085(4) bias gradient with latitude.
 # 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
-      #Bidx_init <- 1:9
+      Bidx_init <- 2:10
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -57,11 +58,11 @@
       cor_thresh <- 0.98
 
       Bidx_init <- c(1:6,15:18,21:29,31,32,34)
-      Bidx_init <- 1
+      Bidx_init <- 9
    }
 
 # Bin width for along-track sampling (5 km).
-   dist_bin_width <- 10
+   dist_bin_width <- 5
 
    flag_ERA5_BILIN <- FALSE
 
@@ -77,8 +78,8 @@
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
    #Bidx_init <- c(1:6,15:18,21:29,31,32,34)
 
-   Sidx <- c(1)
-   flag_tandem <- FALSE
+   Sidx <- 1:2
+   flag_tandem <- TRUE
    if ( flag_tandem ) {
       m_limit <- 13
    } else {
@@ -100,7 +101,7 @@
 #-------------------------------------------------------------------------------------------------#
 # PAC Offshore (active).
       fig_lab_region <- "OS"
-      b_idx_list <- 5:13
+      b_idx_list <- 3:13
 #-------------------------------------------------------------------------------------------------#
 # as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
 # Attach J3.
@@ -211,7 +212,7 @@
    array_radius_stats <- array(NA,dim=c(7,4,10))
    vec_buoy_radius <- c(100,75,60,50,45,40,35,30,25)
    vec_buoy_radius <- c(100,75,60,50,45,40)
-   vec_buoy_radius <- c(50)
+   vec_buoy_radius <- c(100)
 
    list_df_reg_radius <- matrix(list(),nrow=length(vec_buoy_radius),ncol=3)
 
@@ -543,7 +544,7 @@
                tr_A_long_idx <- which(tr_A_len == max(tr_A_len))[1] 
 # Find the longest track to test against, and label this "1".
                vec_tr_test <- mat_list_breaks_master[[m_idx,S_idx]][[ tr_A_idx[tr_A_long_idx] ]]
-               vec_XXing_temp[ tr_A_idx[tr_A_long_idx] ] <- paste(tr_ch,tr_lab_idx,sep="")
+               vec_XXing_temp[ tr_A_idx[tr_A_long_idx] ] <- paste0(tr_ch,tr_lab_idx)
                list_tr_test_temp[[tr_lab_idx]] <- vec_tr_test
 # Loop over all A or D tracks that are not the longest (for perform comparison).
                for ( tr_idx in tr_A_idx[-tr_A_long_idx] ) {
@@ -571,10 +572,10 @@
                      tr_p_dist <- 1; yy <- 1; while( tr_p_dist > 0.06 ) { tr_p_dist <- sum( abs( mat_tr_lonlat[yy,] - vec_tr_test_p ) ); yy <- yy + 1; if (yy > dim(mat_tr_lonlat)[1]) { tr_p_dist <- 0; Lvec_match[tr_p] <- FALSE } }
                   }
                   if ( ! any(Lvec_match) ) {
-                     vec_XXing_temp[tr_idx] <- paste(tr_ch,tr_lab_idx+1,sep="")
+                     vec_XXing_temp[tr_idx] <- paste0(tr_ch,tr_lab_idx+1)
                      #list_tr_test_temp[[tr_lab_idx+1]] <- mat_list_breaks_master[[m_idx,S_idx]][ tr_idx ]
                   } else {
-                     vec_XXing_temp[tr_idx] <- paste(tr_ch,tr_lab_idx,sep="")
+                     vec_XXing_temp[tr_idx] <- paste0(tr_ch,tr_lab_idx)
                   }
                }
                #list_tr_test[[AD_idx]] <- list_tr_test_temp
@@ -621,9 +622,9 @@
                      tr_p_dist <- 1; yy <- 1; while( tr_p_dist > 0.060 ) { tr_p_dist <- sum( abs( mat_tr_lonlat[yy,] - vec_tr_test_p ) ); yy <- yy + 1; if (yy > dim(mat_tr_lonlat)[1]) { tr_p_dist <- 0; Lvec_match[tr_p] <- FALSE } }
                   }
                   if ( ! any(Lvec_match) ) {
-                     vec_XXing_temp[tr_idx] <- paste(tr_ch,tr_lab_idx+1,sep="")
+                     vec_XXing_temp[tr_idx] <- paste0(tr_ch,tr_lab_idx+1)
                   } else {
-                     vec_XXing_temp[tr_idx] <- paste(tr_ch,tr_lab_idx,sep="")
+                     vec_XXing_temp[tr_idx] <- paste0(tr_ch,tr_lab_idx)
                   }
                }
             }
@@ -1443,14 +1444,14 @@
                            track_dir=unlist( lapply( X=1:length(Bidx),FUN=function(x) {
 							 lapply( X=1:length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]]), FUN=function(y) {
 								       	rep(rownames(mat_list_tr_min_lon_lat[[S_idx,x]])[y], length(mat_list_buoy_hs_coloc_trackID[[S_idx,x]][[y]])) } ) } ) ) )
-# Remove low values.
-      df_reg$buoy_hs[df_reg$buoy_hs < 0.25] <- NA
-      df_reg$sat_hs[df_reg$sat_hs < 0.25] <- NA
-      df_reg$sat_hs_adapt[df_reg$sat_hs_adapt < 0.25] <- NA
-      df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.75] <- NA
-      df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.75] <- NA
-      df_reg$sat_hs_min5[df_reg$sat_hs_min5 < 0.75] <- NA
-      df_reg$sat_hs_min7[df_reg$sat_hs_min7 < 0.75] <- NA
+## Remove low values.
+#      df_reg$buoy_hs[df_reg$buoy_hs < 0.25] <- NA
+#      df_reg$sat_hs[df_reg$sat_hs < 0.25] <- NA
+#      df_reg$sat_hs_adapt[df_reg$sat_hs_adapt < 0.25] <- NA
+#      df_reg$sat_hs_min1[df_reg$sat_hs_min1 < 0.75] <- NA
+#      df_reg$sat_hs_min3[df_reg$sat_hs_min3 < 0.75] <- NA
+#      df_reg$sat_hs_min5[df_reg$sat_hs_min5 < 0.75] <- NA
+#      df_reg$sat_hs_min7[df_reg$sat_hs_min7 < 0.75] <- NA
 
 # Save df_reg into a master list.
       list_df_reg_radius[[i_buoy_radius,S_idx]] <- df_reg
@@ -1753,16 +1754,24 @@
 # Algorithm to match up J3, tandem data but using the buoy measurements in df_reg.
 # Remove NAs.
    if ( flag_plot_tandem_anom ) {
-# Setup for S6 LRM or S6 SAR.
+# Setup for S6 LRM or S6 SAR. Default is J3 / S6 LRM.
       flag_S6SAR <- FALSE
       flag_S6SAR_correction1 <- FALSE
       flag_J3BUOY <- FALSE
    
-      tandem_idx <- c(1,3)
-      if ( tandem_idx[2] == 3 ) {
-         flag_S6SAR <- TRUE
-      } else if ( tandem_idx[2] == 4 ) {
+      tandem_idx <- c(1,2)
+      multi_plot_idx <- 1
+      if ( flag_S6SAR ) {
+         tandem_idx[2] == 3
+         if ( flag_S6SAR_correction1 ) {
+            multi_plot_idx <- 4
+         } else {
+            multi_plot_idx <- 2
+         }
+      } else if ( flag_J3BUOY ) {
+         tandem_idx[2] == 4
          flag_J3BUOY <- TRUE
+         multi_plot_idx <- 3
       }
 # Use data from buoy match-ups (excludes some data due to absence of buoy data).
       if ( flag_tandem_anom_trackID ) {
@@ -1770,26 +1779,29 @@
          lab_pairing <- "TRACKID1"
    
          df_reg_J3 <- list_df_reg_radius[[1,tandem_idx[1]]]
-         df_reg_S6LRM <- list_df_reg_radius[[1,tandem_idx[2]]]
+         df_reg_S6 <- list_df_reg_radius[[1,tandem_idx[2]]]
 
-         mat_list_slot_J3B <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) ) } )
-
-         mat_list_slot_J3B <- sapply( X=1:length(df_reg_J3$sat_mean_time),FUN=function(x) { df_reg_S6LRM$sat_mean_time - df_reg_J3$sat_mean_time[x] < 35 & df_reg_S6LRM$sat_mean_time - df_reg_J3$sat_mean_time[x]  > 0 } ) 
+         #mat_list_slot_J3B <- sapply( X=1:length(mat_list_mean_time[[m_idx,1]]),FUN=function(x) { abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) < 1800 & abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) == min( abs(mat_list_mean_time[[m_idx,1]][x] - vec_buoy_time_num) ) } )
+         mat_list_slot_J3B <- sapply( X=1:length(df_reg_J3$sat_mean_time),FUN=function(x) { df_reg_S6$sat_mean_time - df_reg_J3$sat_mean_time[x] < 35 & df_reg_S6$sat_mean_time - df_reg_J3$sat_mean_time[x]  > 0 } ) 
          vec_time_match <- apply(X=mat_list_slot_J3B,MAR=2,FUN=function(x) { if ( any(x) ) { DD <- which(x) } else { DD <- NA } })
          mat_time_match <- cbind(1:length(vec_time_match),vec_time_match)
          mat_time_match <- mat_time_match[!is.na(mat_time_match[,2]),]
          #X11()
-         #plot(df_reg_J3$sat_hs[mat_time_match[,1]],df_reg_S6LRM$sat_hs[mat_time_match[,2]])
+         #plot(df_reg_J3$sat_hs[mat_time_match[,1]],df_reg_S6$sat_hs[mat_time_match[,2]])
 
 # Create data frame for plotting.
          df_plot_tandem <- data.frame(
 				   J3_buoy_hs=df_reg_J3$buoy_hs[mat_time_match[,1]],
 				   J3_sat_hs=df_reg_J3$sat_hs[mat_time_match[,1]],
-				   S6_sat_hs=df_reg_S6LRM$sat_hs[mat_time_match[,2]] )
+				   S6_sat_hs=df_reg_S6$sat_hs[mat_time_match[,2]] )
 
-# Specify J3 & S6 data.
+# Specify J3 & S6 data (and buoy where necessary).
          vec_sat1 <- df_plot_tandem$J3_sat_hs
-         vec_sat2 <- df_plot_tandem$S6_sat_hs
+         if ( tandem_idx[2] == 4 ) {
+            vec_sat2 <- df_plot_tandem$J3_buoy_hs
+         } else {
+            vec_sat2 <- df_plot_tandem$S6_sat_hs
+         }
 # Get paired data.
          vec_sat1_paired <- vec_sat1[!is.na(vec_sat1) & !is.na(vec_sat2)]
          vec_sat2_paired <- vec_sat2[!is.na(vec_sat1) & !is.na(vec_sat2)]
@@ -1797,9 +1809,9 @@
       } else {
 
 #=================================================================================================#
-#      X11(); plot( df_reg_J3$buoy_hs[mat_match_idx[,1]], df_reg_S6LRM$buoy_hs[mat_match_idx[,2]] ); abline(0,1)
-#      X11(); plot( df_reg_J3$sat_hs[mat_match_idx[,1]], df_reg_S6LRM$sat_hs[mat_match_idx[,2]] ); abline(0,1)
-#      mean(df_reg_S6LRM$sat_hs[mat_match_idx[,2]],na.rm=T) - mean(df_reg_J3$sat_hs[mat_match_idx[,1]],na.rm=T)
+#      X11(); plot( df_reg_J3$buoy_hs[mat_match_idx[,1]], df_reg_S6$buoy_hs[mat_match_idx[,2]] ); abline(0,1)
+#      X11(); plot( df_reg_J3$sat_hs[mat_match_idx[,1]], df_reg_S6$sat_hs[mat_match_idx[,2]] ); abline(0,1)
+#      mean(df_reg_S6$sat_hs[mat_match_idx[,2]],na.rm=T) - mean(df_reg_J3$sat_hs[mat_match_idx[,1]],na.rm=T)
 #=================================================================================================#
 # Direct calculation of median (from older code).
          lab_pairing <- "DIRECTPAIR"
@@ -1843,8 +1855,8 @@
                   vec_Q50_S6LRM <- sapply( X=1:length(mat_list_breaks_master[[m_idx,2]]),FUN=function(x) { median( mat_list_1Hz_hs[[m_idx,2]][ mat_list_breaks_master[[m_idx,2]][[x]] ] , na.rm=T ) } )
                   vec_Q50_S6LRM_ALL <- c(vec_Q50_S6LRM_ALL,vec_Q50_S6LRM[apply(X=mat_slot_J3S6L,MAR=1,FUN=any)])
 # J3 QC.
-#               Lvec_qual_numval_J3 <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { any( mat_list_1Hz_numval[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] < 9 ) } )
-#               Lvec_qual_numval_J3_ALL <- c(Lvec_qual_numval_J3_ALL,Lvec_qual_numval_J3[apply(X=mat_slot_J3S6L,MAR=2,FUN=any)])
+                  #Lvec_qual_numval_J3 <- sapply( X=1:length(mat_list_breaks_master[[m_idx,1]]),FUN=function(x) { any( mat_list_1Hz_numval[[m_idx,1]][ mat_list_breaks_master[[m_idx,1]][[x]] ] < 9 ) } )
+                  #Lvec_qual_numval_J3_ALL <- c(Lvec_qual_numval_J3_ALL,Lvec_qual_numval_J3[apply(X=mat_slot_J3S6L,MAR=2,FUN=any)])
 	       }
 # S6 SAR.
                if ( any(Sidx == 3) ) {
@@ -1869,8 +1881,8 @@
                vec_sat2_paired <- vec_buoy_hs_coloc_ALL1[!is.na(vec_buoy_hs_coloc_ALL1)]
             }
 # Old QC scheme.
-            #vec_sat1_paired <- vec_Q50_J3_ALL[!Lvec_qual_numval_J3_ALL]
-            #vec_sat2_paired <- vec_Q50_S6LRM_ALL[!Lvec_qual_numval_J3_ALL]
+#            vec_sat1_paired <- vec_Q50_J3_ALL[!Lvec_qual_numval_J3_ALL]
+#            vec_sat2_paired <- vec_Q50_S6LRM_ALL[!Lvec_qual_numval_J3_ALL]
             vec_data_diff <- vec_sat1_paired-vec_sat2_paired
 # Create initial data frame for plotting.
             df_plot_tandem <- data.frame(
@@ -1930,15 +1942,17 @@
          file_name_lab <- "S6_LRM"
       }
 
-# New DF for plotting.
+# New df for plotting.
       df_plot_tandem1 <- data.frame(vec_J3=vec_sat1_paired,vec_data=vec_sat2_paired,J3_data_diff=vec_data_diff)
+
 # Regression.
       lm_hs <- lm(vec_data ~ vec_J3,data=df_plot_tandem1)
 # RMSD
       hs_rmsd <- sqrt( mean( ( df_plot_tandem1$vec_J3 - df_plot_tandem1$vec_data )^2 ,na.rm=T ) )
 # RMSE
       if ( flag_S6SAR & flag_S6SAR_correction1 ) {
-         hs_rmse <- sqrt(mean(lm_J3mS6SAR$residuals[!Lvec_hs_outlier]^2))
+         #hs_rmse <- sqrt(mean(lm_J3mS6SAR$residuals[!Lvec_hs_outlier]^2))
+         hs_rmse <- sqrt(mean(df_plot_tandem1$vec_data_diff^2))
       } else {
          hs_rmse <- sqrt(mean(lm_hs$residuals^2))
       }
@@ -1952,7 +1966,7 @@
 # https://r-graph-gallery.com/2d-density-plot-with-ggplot2
 # https://stats.stackexchange.com/questions/12392/how-to-compare-two-datasets-with-q-q-plot-using-ggplot2
       require(ggplot2)
-      fig_scatter_filename <- paste0("./figures/test_sampling3/OS/ggplot_scatter_anomaly_J3-",file_name_lab,"_",lab_pairing,"1.png")
+      fig_scatter_filename <- paste0("./figures/test_sampling3/OS/ggplot_scatter_anomaly_J3-",file_name_lab,"_",buoy_radius,"_",lab_pairing,"2.png")
 # Data for Q-Q plot.
       #qq_data <- as.data.frame(qqplot(df_plot_tandem$J3_sat_hs, df_plot_tandem$S6_sat_hs, plot.it=FALSE))
 
@@ -1963,11 +1977,11 @@
       geom_abline(slope = 0, intercept = 0, colour = "red", linewidth = 5) +
       #geom_label(x=1, y=1.5, hjust=0, label=paste0("Correlation:",format(hs_cor,digits=3),"\n","RMSD: ",format(round(hs_rmsd,3),nsmall=2),"\n","RMSE:",format(round(hs_rmse,3),nsmall=2)), size=24, label.padding = unit(2.0, "lines")) +
       geom_text(x=0, y=1.15, hjust=0, lineheight = 1,
-	       	label=paste0("Mean bias (J3 mean = ",format(mean(vec_sat1_paired),digits=2),"): ",format(hs_bias,digits=2),
+	       	label=paste0("Mean bias (J3 mean = ",format(mean(df_plot_tandem1$vec_J3),digits=2),"): ",format(hs_bias,digits=2),
 	       	             "\nCorrelation: ",format(hs_cor,digits=3),
 			     "\nRMSD: ",format(round(hs_rmsd,3),nsmall=2),
 			     "\nRMSE: ",format(round(hs_rmse,3),nsmall=2),
-			     "\nN: ",sum(!is.na(vec_sat1_paired))), size=36) +
+			     "\nN: ",sum(!is.na(df_plot_tandem1$vec_J3))), size=36) +
       scale_fill_continuous(type = "viridis") +
       theme(
             plot.title = element_text(size = 110, hjust = 0.5, margin = margin(t = 50, r = 0, b = 50, l = 0)),
