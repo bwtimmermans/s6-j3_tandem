@@ -21,12 +21,12 @@
    flag_buoy_bias_hist <- FALSE
 
 # ggplot.
-   flag_plot_tandem_anom <- TRUE
+   flag_plot_tandem_anom <- FALSE
    flag_tandem_anom_trackID <- FALSE
 
    flag_plot_ggmap <- FALSE
 # Correlation (COR) or mean bias (BIAS).
-   flag_plot_ggmap_COR <- TRUE
+   flag_plot_ggmap_COR <- FALSE
 
 # Sea state sampling by wave period.
    flag_period_thresh <- FALSE
@@ -49,7 +49,7 @@
 # 46085(4) bias gradient with latitude.
 # 46001(5) bias gradient with latitude? (Similar to 46085).
       Bidx_init <- c(1,2,4:9)
-      Bidx_init <- 2:10
+      Bidx_init <- c(1)
    } else {
       #str_region <- "PAC_NS"
       #buoy_list <- c(buoy_list_PAC_NS)
@@ -58,11 +58,11 @@
       cor_thresh <- 0.98
 
       Bidx_init <- c(1:6,15:18,21:29,31,32,34)
-      Bidx_init <- 9
+      Bidx_init <- 23
    }
 
 # Bin width for along-track sampling (5 km).
-   dist_bin_width <- 5
+   dist_bin_width <- 10
 
    flag_ERA5_BILIN <- FALSE
 
@@ -78,8 +78,8 @@
    #Bidx_init <- c(1:6,8:10,12:16,18:27,29:34)
    #Bidx_init <- c(1:6,15:18,21:29,31,32,34)
 
-   Sidx <- 1:2
-   flag_tandem <- TRUE
+   Sidx <- c(1)
+   flag_tandem <- FALSE
    if ( flag_tandem ) {
       m_limit <- 13
    } else {
@@ -101,7 +101,7 @@
 #-------------------------------------------------------------------------------------------------#
 # PAC Offshore (active).
       fig_lab_region <- "OS"
-      b_idx_list <- 3:13
+      b_idx_list <- 5:13
 #-------------------------------------------------------------------------------------------------#
 # as.POSIXct(S6_46246_march[[4]][1:100], origin = '2000-01-01', tz='GMT')
 # Attach J3.
@@ -208,10 +208,10 @@
 # Dims: 1 = stat
 #       2 = sampling method
 #       3 = radius
-
    array_radius_stats <- array(NA,dim=c(7,4,10))
+
    vec_buoy_radius <- c(100,75,60,50,45,40,35,30,25)
-   vec_buoy_radius <- c(100,75,60,50,45,40)
+   vec_buoy_radius <- c(100,75,60,50,45,40,35,30)
    vec_buoy_radius <- c(100)
 
    list_df_reg_radius <- matrix(list(),nrow=length(vec_buoy_radius),ncol=3)
@@ -1591,26 +1591,44 @@
 
 #=================================================================================================#
    if ( flag_radius_plot & (i_buoy_radius == length(vec_buoy_radius) ) ) {
-# Generate stats directly from df_reg (N and N[1 Hz]).
-# Lvec_temp <- !is.na(list_df_reg_radius[[1]]$buoy_hs) & !is.na(list_df_reg_radius[[1]]$sat_hs)
-# sum(Lvec_temp)
-# sum( list_df_reg_radius[[1]]$sat_1Hz_count[Lvec_temp] )
+
+# Set dataset.
+      S_idx <- 1
+
+## Fit a linear model to calibrate the S6 HR data.
+#      CC <- list_df_reg_radius[[1,3]] # S6LRM
+#      CCC <- list_df_reg_radius[[1,1]] # J3
+#      CC_ <- CC[sort(CC$sat_mean_time, index.return = TRUE)$ix,]
+#      CCC_ <- CCC[sort(CCC$sat_mean_time, index.return = TRUE)$ix,]
+#      mat_CC <- sapply( X=1:length(CCC_$sat_mean_time),FUN=function(x) { abs(CCC_$sat_mean_time[x] - CC_$sat_mean_time) < 40 } )
+#      CCCC <- data.frame(S6_hs=CC_$sat_hs[apply(X=mat_CC,MAR=1,FUN=any)],J3_hs=CCC_$sat_hs[apply(X=mat_CC,MAR=2,FUN=any)])
+#      X11(); plot(CCCC)
+#      lm(J3_hs ~ S6_hs + I(S6_hs^(1/2)), data=CCCC)
 
 # Plotting statistics as a function of sampling radius.
 # Generate mean bias for each buoy (background lines).
       mat_buoy_bias_rad <- matrix(nrow=length(Bidx_max)+1,ncol=length(vec_buoy_radius))
+
       for ( i_b_rad in 1:length(vec_buoy_radius) ) {
-         vec_sat_rad <- list_df_reg_radius[[i_b_rad]]$sat_hs
-         vec_buoy_rad <- list_df_reg_radius[[i_b_rad]]$buoy_hs
+# Apply linear model correction to S6SAR.
+         if ( S_idx == 3 ) {
+            path_S6SAR_correction_model <- "/home/ben/research/NOC/projects/s6-j3_tandem/analysis/S6_correction/lm_J3mS6SAR_OS_no46246.Robj"
+            load(path_S6SAR_correction_model)
+            vec_sat_rad <- list_df_reg_radius[[i_b_rad,S_idx]]$sat_hs
+            vec_sat_rad <- predict.lm(object=lm_J3mS6SAR,newdata=data.frame(S6_sat_hs=vec_sat_rad))
+         } else {
+            vec_sat_rad <- list_df_reg_radius[[i_b_rad,S_idx]]$sat_hs
+         }
+         vec_buoy_rad <- list_df_reg_radius[[i_b_rad,S_idx]]$buoy_hs
          Lvec_paired_rad <- !is.na(vec_buoy_rad) & !is.na(vec_sat_rad)
 # Total mean bias (46246 removed).
-         Lvec_pair_46246 <- list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad] != 46246
+         Lvec_pair_46246 <- list_df_reg_radius[[i_b_rad,S_idx]]$buoy_lab[Lvec_paired_rad] != 46246
          #Lvec_pair_46246 <- rep(TRUE,length(list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad]))
          mat_buoy_bias_rad[length(Bidx_max)+1,i_b_rad] <- mean( (vec_sat_rad[Lvec_paired_rad] - vec_buoy_rad[Lvec_paired_rad])[Lvec_pair_46246] )
 # Mean bias conditional on buoy.
          for ( b_idx in 1:length(Bidx_max) ) {
-            if ( sum( list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad] == buoy_list[b_idx_list[Bidx_max[b_idx]]] ) > 0 ) {
-               mat_buoy_bias_rad[b_idx,i_b_rad] <- mean( (vec_sat_rad[Lvec_paired_rad] - vec_buoy_rad[Lvec_paired_rad])[ list_df_reg_radius[[i_b_rad]]$buoy_lab[Lvec_paired_rad] == buoy_list[b_idx_list[Bidx_max[b_idx]]] ] )
+            if ( sum( list_df_reg_radius[[i_b_rad,S_idx]]$buoy_lab[Lvec_paired_rad] == buoy_list[b_idx_list[Bidx_max[b_idx]]] ) > 0 ) {
+               mat_buoy_bias_rad[b_idx,i_b_rad] <- mean( (vec_sat_rad[Lvec_paired_rad] - vec_buoy_rad[Lvec_paired_rad])[ list_df_reg_radius[[i_b_rad,S_idx]]$buoy_lab[Lvec_paired_rad] == buoy_list[b_idx_list[Bidx_max[b_idx]]] ] )
             }
          }
       }
@@ -1627,7 +1645,7 @@
 
       plot_title <- paste0(fig_lab_region," ",vec_tandem_labs[S_idx],"[M",m_limit,"] Mean bias with sampling radius")
 
-      fig_radius_stats_file_name <- paste0("./figures/buoy_mean_bootstrap/meanbias_radius_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],".png")
+      fig_radius_stats_file_name <- paste0("./figures/buoy_mean_bootstrap/meanbias_radius_",fig_lab_region,"_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",paste(Bidx_init,collapse=''),".png")
 
 # Open file.
       png(fig_radius_stats_file_name, width = 2400, height = 2400)
@@ -1649,13 +1667,22 @@
       text(x=rev(vec_buoy_radius)[1], y=array_radius_stats[6,1,length(vec_buoy_radius)], labels=paste0("N = ",array_radius_stats[6,1,length(vec_buoy_radius)]), pos=1, cex=pl_cex_axis)
       par(new=TRUE)
 # Plot mean bias by buoy.
-      plot(NULL,xlim=c(20,100),ylim=c(-0.1,0.1),xlab="",ylab="Hs Mean Bias (m)",cex.lab=pl_cex_lab,cex.axis=pl_cex_axis)
-      abline(h=c(-0.02,-0.01,0.01,0.02),col="grey",lwd=3)
-      abline(h=0,col="darkgrey",lwd=5)
+      plot(NULL,xlim=c(20,100),ylim=c(-0.08,0.08),xlab="",ylab="Hs Mean Bias (m)",cex.lab=pl_cex_lab,cex.axis=pl_cex_axis)
+      #plot(NULL,xlim=c(20,100),ylim=c(-0.08,0.08),xlab="",ylab="Hs Mean Bias (m)",cex.lab=pl_cex_lab,cex.axis=pl_cex_axis,axes=F)
+      #axis(side=4,at=c(2,2.25,2.5,2.75,3,3.25),cex=pl_cex_axis,cex.lab=pl_cex_lab,cex.axis=pl_cex_axis,col.axis="blue")
+      abline(h=c(-0.03,-0.02,-0.01,0.01,0.02,0.03),col="grey",lwd=3)
+      abline(h=0,col="darkgrey",lwd=6)
       for ( b_idx in 1:length(Bidx_max) ) {
          lines(vec_buoy_radius,mat_buoy_bias_rad[b_idx,],lwd=10,col="coral1")
-         #points(vec_buoy_radius,mat_buoy_bias_rad[b_idx,],cex=1,col="coral1")
-      }      
+      }
+      i_buoys <- length(mat_buoy_bias_rad[,1])-1
+      points(rep(vec_buoy_radius[1],i_buoys),mat_buoy_bias_rad[1:i_buoys,1],pch=17,cex=5,col="black")
+      points(rep(vec_buoy_radius[1],i_buoys),mat_buoy_bias_rad[1:i_buoys,1],pch=17,cex=3,col="coral1")
+# Determine positions for buoy labels.
+      AA <- mat_buoy_bias_rad[1:8,1]
+      BB <- sort(AA, decreasing = TRUE, index.return = TRUE)
+      for ( j in 1:7 ) { for ( i in (j+1):8 ) { if ( (AA[BB$ix[j]] - AA[BB$ix[i]]) > 0 & (AA[BB$ix[j]] - AA[BB$ix[i]]) < 0.0025 ) { AA[BB$ix[i]] <- AA[BB$ix[i]] - 0.0025 } } }
+      text(rep(vec_buoy_radius[1]-5,i_buoys),AA,labels=rownames(mat_buoy_bias_rad)[1:i_buoys],cex=4)
 # Plot mean bias average.
       points(vec_buoy_radius,mat_buoy_bias_rad[length(Bidx_max)+1,],cex=1,col="firebrick2")
       lines(vec_buoy_radius,mat_buoy_bias_rad[length(Bidx_max)+1,],lwd=18,col="firebrick2")
@@ -1665,8 +1692,8 @@
       par(new=TRUE)
       plot(vec_buoy_radius,array_radius_stats[1,1,1:length(vec_buoy_radius)],xlim=c(20,100),ylim=c(0,3),xlab="",ylab="",pch=19,col="blue",cex=5,axes=FALSE)
       lines(c(vec_buoy_radius),array_radius_stats[1,1,1:length(vec_buoy_radius)],pch=19,col="white",cex=3)
-      axis(side=4,at=c(2,2.25,2.5,2.75,3,3.25),cex=pl_cex_axis,cex.lab=pl_cex_lab,cex.axis=pl_cex_axis)
-      mtext("Mean Hs (m)", side=4, line=8, adj=0.75, cex=pl_cex_axis)
+      axis(side=4,at=c(2,2.25,2.5,2.75,3,3.25),cex=pl_cex_axis,cex.lab=pl_cex_lab,cex.axis=pl_cex_axis,col.axis="blue")
+      mtext("Mean Hs (m)", side=4, line=8, adj=0.85, cex=pl_cex_axis,col="blue")
 
       dev.off()
       system(paste("okular",fig_radius_stats_file_name,"&> /dev/null &"))
@@ -1755,21 +1782,21 @@
 # Remove NAs.
    if ( flag_plot_tandem_anom ) {
 # Setup for S6 LRM or S6 SAR. Default is J3 / S6 LRM.
-      flag_S6SAR <- FALSE
-      flag_S6SAR_correction1 <- FALSE
+      flag_S6SAR <- TRUE
+      flag_S6SAR_correction1 <- TRUE
       flag_J3BUOY <- FALSE
    
       tandem_idx <- c(1,2)
       multi_plot_idx <- 1
       if ( flag_S6SAR ) {
-         tandem_idx[2] == 3
+         tandem_idx[2] <- 3
          if ( flag_S6SAR_correction1 ) {
             multi_plot_idx <- 4
          } else {
             multi_plot_idx <- 2
          }
       } else if ( flag_J3BUOY ) {
-         tandem_idx[2] == 4
+         tandem_idx[2] <- 4
          flag_J3BUOY <- TRUE
          multi_plot_idx <- 3
       }
@@ -1918,6 +1945,7 @@
       if ( flag_S6SAR & flag_S6SAR_correction1 ) {
 # Model.
          lm_J3mS6SAR = lm(J3_sat_hs ~ S6_sat_hs + I(S6_sat_hs^(1/2)), data=df_plot_tandem)
+         #save(lm_J3mS6SAR,file = "./S6_correction/lm_J3mS6SAR_OS_no46246.Robj")
          #vec_hs_QC <- predict.lm(object=lm_J3mS6SAR,newdata=data.frame(S6SAR=vec_hs))
          Lvec_hs_outlier <- abs(lm_J3mS6SAR$residuals) > 3*sqrt(var(lm_J3mS6SAR$residuals))
 
@@ -2020,6 +2048,8 @@
 # ggplot.
 #-------------------------------------------------------------------------------------------------#
    if ( flag_plot_ggmap ) {
+# Set seasons to plot.
+      vec_ggplot_season <- 1:2
 # Sampling radius.
 # https://stackoverflow.com/questions/34183049/plot-circle-with-a-certain-radius-around-point-on-a-map-in-ggplot2
       func_make_circles <- function(centers, radius, nPoints = 100) {
@@ -2065,9 +2095,9 @@
       df_plot_cor <- NULL
       for (b_idx in 1:length(Bidx)) {
          for (kk in 1:length( list_B_list_tr_lm_seq[[b_idx]] )) {
-            plot_angle <- 1.5*(180/pi)*atan( (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,2] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,2]) / (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,1] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,1]) )
+            plot_angle <- 1.2*(180/pi)*atan( (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,2] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,2]) / (list_B_list_tr_lm_seq[[b_idx]][[kk]][1001,1] - list_B_list_tr_lm_seq[[b_idx]][[kk]][1,1]) )
 
-            for (season_idx in vec_season) {
+            for (season_idx in vec_ggplot_season) {
                if ( !all( is.na( mat_list_cor[[S_idx,b_idx]][[season_idx]][[kk]] ) ) ) {
                   if ( flag_plot_ggmap_COR ) {
 # Correlation plot.
@@ -2079,6 +2109,7 @@
                   temp_idx <- which( df_DD[,1] == mat_list_bin_coords[[S_idx,b_idx]][[kk]][1,1] )
                   df_DD[temp_idx:(temp_idx-1+length(mat_list_bin_coords[[S_idx,b_idx]][[kk]][,3])),3:4] <- mat_list_bin_coords[[S_idx,b_idx]][[kk]][,2:3]
                   df_plot_cor <- rbind( df_plot_cor,cbind(df_DD[!is.na(df_DD$cor),],tr_id=paste0(buoy_list[b_idx_list[b_idx]],"_",kk)) )
+                  #df_plot_cor <- rbind( df_plot_cor,cbind(df_DD[!(is.na(df_DD$cor) | is.na(df_DD$bias)),],tr_id=paste0(buoy_list[b_idx_list[b_idx]],"_",kk)) )
                } else {
                   print(paste("Buoy ID:",buoy_idx,"[",buoy_list[buoy_idx],"] No correlation data for track ID:",kk))
                }
@@ -2095,16 +2126,16 @@
 # Fix to saturate colour scale below correlation = 0.85
       if ( flag_plot_ggmap_COR ) {
 # Colour scale.
-         df_plot_cor$cor[df_plot_cor$cor < 0.85] <- 0.85
+         df_plot_cor$cor[df_plot_cor$cor < 0.85] <- NA
          ggplot_colour_scale <- scale_colour_viridis_c(option = "plasma")
          legend_title <- "Cor"
-         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_season,collapse=""),"_COR.png")
+         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_ggplot_season,collapse=""),"_COR1.png")
          system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
       } else {
 # Colour scale.
          ggplot_colour_scale <- scale_colour_gradient2(low = "blue", mid="white", high = "red")
          legend_title <- "Bias (m)"
-         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_season,collapse=""),"_BIAS.png")
+         fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_ggplot_season,collapse=""),"_BIAS1.png")
          system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
       }
 #-------------------------------------------------------------------------------------------------#
@@ -2121,7 +2152,7 @@
          }
       } else {
          if ( length(Bidx < 3) ) {
-            ggplot_zoom <- 7
+            ggplot_zoom <- 8
          } else {
             ggplot_zoom <- 5
          }
@@ -2182,7 +2213,7 @@
 #         guides(fill=guide_legend(reverse=TRUE)) +
 
       #mat_lay <- cbind(c(1,1,1),matrix(rep(2,9),ncol=3))
-      png(fig_file_name,width=1500,height=1400*length(vec_season))
+      png(fig_file_name,width=1500,height=1400*length(vec_ggplot_season))
       #pdf(fig_file_name,width = 8, height = 9)
       #grid.arrange(p2,p1,layout_matrix=mat_lay)
       plot(p2)
