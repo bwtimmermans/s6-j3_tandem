@@ -106,16 +106,18 @@
 # Set up parameters for plotting variables.
    list_plot <- list()
    vec_plot_leg_title <- c("Bias (m)","Cor")
+   list_season_lab <- list(c("A) AMJJAS","C) ONDJFM"),c("B) AMJJAS","D) ONDJFM"))
    list_plot_colour_scale <- list(scale_colour_gradient2(low = "blue", mid="white", high = "red"),scale_colour_viridis_c(option = "plasma"))
    plot_title <- paste0(buoy_list[buoy_idx],"; ",buoy_radius," km sampling; ",dist_bin_width," km bin size")
 
-   fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_ggplot_season,collapse=""),"_BIAS_COR1.png")
+   fig_file_name <- paste0("./figures/test_sampling3/",buoy_list[buoy_idx],"/ggmap_","M",m_limit,"_",vec_tandem_labs[S_idx],"_",buoy_list[buoy_idx],"_",buoy_radius,"km_season",paste(vec_ggplot_season,collapse=""),"_BIAS_COR.png")
    system(paste0("if [ ! -d ./figures/test_sampling3/",buoy_list[buoy_idx]," ]; then mkdir ./figures/test_sampling3/",buoy_list[buoy_idx]," &> /dev/null; fi"))
 
    #df_plot_cor$cor[df_plot_cor$cor < 0.85] <- NA
 # Use outlier detection to provide continuous colour scale.
 # https://statsandr.com/blog/outliers-detection-in-r/
    df_plot_cor$cor[ which(df_plot_cor$cor %in% boxplot.stats(df_plot_cor$cor)$out) ] <- NA
+   df_plot_cor$bias[ which(df_plot_cor$bias %in% boxplot.stats(df_plot_cor$bias,coef=1.4)$out) ] <- NA
 
 # Data frame update for plotting.
    list_plot_var <- list()
@@ -130,6 +132,9 @@
       ggplot_colour_scale <- list_plot_colour_scale[[i_plot_idx]]
 # Data frame update for plotting.
       df_plot_cor$plot_var <- list_plot_var[[i_plot_idx]]
+# Panel labelling for season.
+      df_plot_cor$season_lab[df_plot_cor$season == "AMJJAS"] <- list_season_lab[[i_plot_idx]][1]
+      df_plot_cor$season_lab[df_plot_cor$season == "ONDJFM"] <- list_season_lab[[i_plot_idx]][2]
 
 #-------------------------------------------------------------------------------------------------#
 # Create plot.
@@ -147,7 +152,7 @@
 # Bin correlation points.
          #geom_point(data=df_plot_cor, aes(x=lon, y=lat, col=cor), fill="black", shape=1, size=10, stroke=5) +
          geom_text(data=df_plot_cor, label = "\u25AE", size=18, aes(x=lon, y=lat, col=plot_var, angle=plot_angle)) +
-         facet_wrap(~season, ncol=1) +
+         facet_wrap(~season_lab, ncol=1) +
 # Buoy label.
          geom_label(aes(x=df_buoy_data$buoy_lon[b_idx_list[Bidx]], y=df_buoy_data$buoy_lat[b_idx_list[Bidx]], label=paste(buoy_list[buoy_idx])), label.padding = unit(0.30, "lines"), size = 20, nudge_x = 1.5, nudge_y = 0.7) +
 # ERA5 grid cells.
